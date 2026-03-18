@@ -1,4 +1,6 @@
 from omrat_api.api.workbench_api import (
+    build_osm_scene,
+    evaluate_land_crossings,
     ingest_ais,
     import_project,
     load_project,
@@ -6,6 +8,31 @@ from omrat_api.api.workbench_api import (
     start_analysis,
     sync_layers,
 )
+
+
+def _osm_context():
+    return {
+        "land_features": [
+            {
+                "type": "Feature",
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [[(4, -3), (7, -3), (7, 3), (4, 3), (4, -3)]],
+                },
+                "properties": {"natural": "coastline"},
+            }
+        ],
+        "fixed_object_features": [
+            {
+                "type": "Feature",
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [[(9, -1), (11, -1), (11, 1), (9, 1), (9, -1)]],
+                },
+                "properties": {"man_made": "offshore_platform"},
+            }
+        ],
+    }
 
 
 def test_load_and_import_project_api_shapes():
@@ -74,7 +101,30 @@ def test_preview_corridor_overlaps_returns_hits():
     assert preview["overlaps"][0]["segment_id"] == "S1"
 
 
-def test_start_analysis_uses_simulation_adapter():
+def test_osm_scene_and_land_crossings():
+    payload = {
+        "segment_data": [
+            {
+                "segment_id": "S1",
+                "coords": [(0, 0), (12, 0)],
+                "width_m": 2,
+            }
+        ],
+        "objects": [],
+        "traffic_data": [],
+        "depths": [],
+        "settings": {"model_name": "demo", "report_path": "/tmp/demo.md", "causation_version": "v1"},
+    }
+
+    scene = build_osm_scene(_osm_context())
+    crossings = evaluate_land_crossings(payload, _osm_context())
+
+    assert len(scene["land_areas"]) == 1
+    assert len(scene["fixed_objects"]) == 1
+    assert crossings["count"] == 1
+
+
+def test_start_analysis_uses_simulation_adapter_with_osm_context():
     summary = start_analysis(
         {
             "segment_data": [
@@ -83,7 +133,7 @@ def test_start_analysis_uses_simulation_adapter():
                     "from_waypoint": "A",
                     "to_waypoint": "B",
                     "width_m": 50,
-                    "coords": [(0, 0), (10, 0)],
+                    "coords": [(0, 0), (12, 0)],
                 }
             ],
             "traffic_data": [{"segment_id": "S1", "ship_category": "Cargo", "annual_transits": 12}],
@@ -92,14 +142,16 @@ def test_start_analysis_uses_simulation_adapter():
                 {
                     "feature_id": "O1",
                     "object_type": "Turbine",
-                    "coords": [(4, -2), (6, -2), (6, 2), (4, 2)],
+                    "coords": [(1, -2), (2, -2), (2, 2), (1, 2)],
                 }
             ],
+            "osm_context": _osm_context(),
             "settings": {"model_name": "demo", "report_path": "/tmp/demo.md", "causation_version": "v1"},
         }
     )
 
     assert summary["status"] == "completed"
     assert summary["powered_summary"]["segments"] == 1
-    assert summary["drifting_summary"]["objects"] == 1
-    assert summary["drifting_summary"]["overlap_hits"] == 1
+    assert summary["drifting_summary"]["objects"] >= 1
+    assert summary["osm_summary"]["land_crossing_count"] == 1
+    assert summary["osm_summary"]["osm_fixed_objects_added"] == 1

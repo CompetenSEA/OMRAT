@@ -12,6 +12,7 @@ from omrat_api.engine.geometry_engine import GeometryEngine
 from omrat_api.engine.layer_store import LayerStore
 from omrat_api.services.ais_ingestion import AISIngestionService
 from omrat_api.services.map_layer_service import MapLayerService
+from omrat_api.services.osm_scene_service import OSMSceneService
 from omrat_api.services.project_io import ProjectIOService
 from omrat_api.services.run_orchestration import RunOrchestrationService
 
@@ -34,6 +35,14 @@ def import_project(
 def ingest_ais(rows: list[Mapping[str, Any]]) -> Dict[str, Any]:
     records = AISIngestionService.ingest(rows)
     return {"traffic_data": [asdict(r) for r in records], "rows_written": len(records)}
+
+
+def build_osm_scene(osm_context: Dict[str, Any]) -> Dict[str, Any]:
+    return OSMSceneService.build_scene(osm_context)
+
+
+def evaluate_land_crossings(payload: Dict[str, Any], osm_context: Dict[str, Any]) -> Dict[str, Any]:
+    return OSMSceneService.compute_land_crossings(payload, osm_context)
 
 
 def start_analysis(payload: Dict[str, Any]) -> Dict[str, Any]:
