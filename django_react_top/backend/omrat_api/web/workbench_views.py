@@ -18,6 +18,7 @@ from omrat_api.api.workbench_api import (
     import_legacy_project,
     ingest_ais,
     load_project,
+    parity_corpus_status,
     start_analysis,
 )
 from omrat_api.api.workbench_controller import WorkbenchController
@@ -45,6 +46,19 @@ _GENERIC_ERROR_CODE_REGISTRY: dict[str, tuple[str, str]] = {
 }
 
 
+_ERROR_USER_MESSAGE_TEMPLATES: dict[str, str] = {
+    "validation_error": "Some required inputs are missing or invalid.",
+    "import_error": "The project import payload could not be merged.",
+    "task_error": "Run task execution failed. Retry or inspect task logs.",
+    "api_error": "The workbench action failed due to an API domain error.",
+    "unexpected_error": "Unexpected server error while executing workbench action.",
+    "unauthorized": "You are not authorized for this action or project scope.",
+    "not_found": "Requested workbench action was not found.",
+    "method_not_allowed": "Only POST requests are supported for this endpoint.",
+    "invalid_json": "Request body is not valid JSON.",
+}
+
+
 @dataclass(frozen=True)
 class EndpointSpec:
     """Endpoint contract used by the framework-agnostic dispatcher."""
@@ -53,7 +67,7 @@ class EndpointSpec:
     required_keys: tuple[str, ...] = ()
 
 
-def _build_error_payload(action: str, error_type: str, message: str) -> dict[str, str]:
+def _build_error_payload(action: str, error_type: str, message: str, *, details: dict[str, Any] | None = None) -> dict[str, Any]:
     """Build a stable, endpoint-specific error payload for frontend handling."""
     action_key = (action or "unknown").replace("-", "_")
     if action in _ENDPOINT_SPECS:
@@ -66,13 +80,17 @@ def _build_error_payload(action: str, error_type: str, message: str) -> dict[str
         else:
             code = f"workbench.action.{error_type}"
             message_id = f"WB_ACTION_{error_type.upper()}"
-    return {
+    payload: dict[str, Any] = {
         "type": error_type,
         "message": message,
+        "user_message": _ERROR_USER_MESSAGE_TEMPLATES.get(error_type, "Workbench request failed."),
         "code": code,
         "message_id": message_id,
         "action": action,
     }
+    if details:
+        payload["details"] = details
+    return payload
 
 
 def _require_keys(payload: dict[str, Any], keys: tuple[str, ...]) -> None:
@@ -220,19 +238,26 @@ _ENDPOINT_SPECS: dict[str, EndpointSpec] = {
     "import-iwrap-xml": EndpointSpec(handler=_import_iwrap_xml_handler),
     "list-runs": EndpointSpec(handler=_list_runs_handler),
     "queue-metrics": EndpointSpec(handler=_queue_metrics_handler),
+    "parity-corpus-status": EndpointSpec(handler=lambda _payload: parity_corpus_status()),
     "create-route-segment": EndpointSpec(
         handler=_with_required_keys(
             _CONTROLLER.create_route_segment,
             keys=("start_point", "end_point"),
         )
     ),
-    "sync-layers": EndpointSpec(handler=_CONTROLLER.sync_layers),
-    "preview-corridor-overlaps": EndpointSpec(handler=_CONTROLLER.preview_corridor_overlaps),
+    "sync-layers": EndpointSpec(
+        handler=_with_required_keys(_CONTROLLER.sync_layers, keys=("segment_data", "depths", "objects"))
+    ),
+    "preview-corridor-overlaps": EndpointSpec(
+        handler=_with_required_keys(_CONTROLLER.preview_corridor_overlaps, keys=("segment_data", "objects"))
+    ),
     "enqueue-run": EndpointSpec(handler=_enqueue_run_handler),
     "execute-run": EndpointSpec(handler=_execute_run_handler),
     "execute-run-async": EndpointSpec(handler=_execute_run_handler),
     "get-task": EndpointSpec(handler=_get_task_handler),
-    "start-analysis": EndpointSpec(handler=start_analysis),
+    "start-analysis": EndpointSpec(
+        handler=_with_required_keys(start_analysis, keys=("segment_data", "traffic_data", "depths", "objects", "settings"))
+    ),
     "process-queue": EndpointSpec(handler=lambda _payload: _CONTROLLER.process_queue_once()),
 }
 
@@ -309,7 +334,13 @@ def dispatch_workbench_action(
             request_fingerprint=fingerprint,
             latency_ms=(time.perf_counter() - start) * 1000.0,
         )
-        return {"ok": False, "error": _build_error_payload(action, "validation_error", str(exc))}
+        details = None
+        message = str(exc)
+        prefix = "Missing required payload keys:"
+        if message.startswith(prefix):
+            missing_keys = [item.strip() for item in message[len(prefix):].split(",") if item.strip()]
+            details = {"missing_keys": missing_keys}
+        return {"ok": False, "error": _build_error_payload(action, "validation_error", message, details=details)}
     except ImportMergeError as exc:
         audit_log(
             action=action,

@@ -1,4 +1,5 @@
 import { buildSegmentDraft } from '../model/routeGeometry.js';
+import { resolveWorkbenchErrorMessage } from '../model/errorCatalog.js';
 
 /**
  * Minimal API client for risk workbench flows.
@@ -8,6 +9,7 @@ export function createWorkbenchClient(baseUrl = '', options = {}) {
   const prefix = baseUrl.replace(/\/$/, '');
   const authToken = options.authToken || '';
   const strictServer = Boolean(options.strictServer);
+  const locale = options.locale || 'en-GB';
   const taskStore = new Map();
 
   async function request(path, body) {
@@ -28,7 +30,7 @@ export function createWorkbenchClient(baseUrl = '', options = {}) {
     const payload = await response.json();
     if (payload && typeof payload === 'object' && Object.prototype.hasOwnProperty.call(payload, 'ok')) {
       if (!payload.ok) {
-        const message = payload.error?.message || 'Workbench request failed';
+        const message = resolveWorkbenchErrorMessage(payload.error, locale);
         throw new Error(message);
       }
       return payload.data;

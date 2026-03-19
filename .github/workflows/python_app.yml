@@ -49,3 +49,9 @@ jobs:
           export PYTHONPATH=\$PYTHONPATH:/app:/usr/share/qgis/python/plugins && \
           xvfb-run -s '+extension GLX -screen 0 1024x768x24' python3 -m pytest tests -s
         "
+    - name: Run web parity pack
+      run: |
+        docker run --volume $(pwd):/app -w=/app qgis_with_deps sh -c "
+          export PYTHONPATH=\$PYTHONPATH:/app:/app/django_react_top/backend && \
+          python3 -m pytest django_react_top/backend/tests/test_legacy_golden_parity.py django_react_top/backend/tests/test_iwrap_xml_parity.py django_react_top/backend/tests/test_drift_corridor_parity.py -q
+        "

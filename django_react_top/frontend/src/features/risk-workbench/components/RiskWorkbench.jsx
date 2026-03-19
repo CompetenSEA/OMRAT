@@ -268,8 +268,26 @@ function SettingsEditor({ state, dispatch }) {
   );
 }
 
-function MapPreviewPanel({ state }) {
+function MapPreviewPanel({ state, client, onError }) {
   const bounds = useMemo(() => computeBounds(state.segmentData, state.objects), [state.segmentData, state.objects]);
+  const [mapOverlaps, setMapOverlaps] = useState([]);
+  const [loadingOverlaps, setLoadingOverlaps] = useState(false);
+  const [overlapOpacity, setOverlapOpacity] = useState(0.55);
+  const [showOverlapStroke, setShowOverlapStroke] = useState(true);
+
+  const renderOverlapLayer = async () => {
+    setLoadingOverlaps(true);
+    try {
+      const payload = buildCanonicalPayload(state);
+      const response = await client.previewCorridorOverlaps(payload);
+      setMapOverlaps(response.overlaps || []);
+      onError('');
+    } catch (error) {
+      onError(error.message);
+    } finally {
+      setLoadingOverlaps(false);
+    }
+  };
 
   return (
     <Card>
@@ -277,7 +295,25 @@ function MapPreviewPanel({ state }) {
         <CardTitle>Map preview</CardTitle>
         <CardDescription>Live corridor polygons, route centerlines, and object overlays.</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" onClick={renderOverlapLayer} disabled={loadingOverlaps}>
+            {loadingOverlaps ? 'Rendering…' : 'Render drift overlap layer'}
+          </Button>
+          {mapOverlaps.length > 0 && <Badge variant="secondary">{mapOverlaps.length} overlaps rendered</Badge>}
+          <div className="flex items-center gap-2 text-xs text-slate-600">
+            <Label className="text-xs">Overlap opacity</Label>
+            <Input
+              value={overlapOpacity}
+              onChange={(e) => setOverlapOpacity(Math.max(0.1, Math.min(1, Number(e.target.value) || 0.55)))}
+              className="h-8 w-20"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch checked={showOverlapStroke} onCheckedChange={setShowOverlapStroke} />
+            <Label className="text-xs">Outline overlaps</Label>
+          </div>
+        </div>
         <svg viewBox={`${bounds.minX} ${-bounds.maxY} ${bounds.width} ${bounds.height}`} className="h-80 w-full rounded border border-slate-200 bg-slate-50">
           {state.segmentData.map((segment, index) => (
             <g key={`${segment.label}-${index}`}>
@@ -286,6 +322,18 @@ function MapPreviewPanel({ state }) {
               )}
               <path d={segmentToSvgPath(segment)} stroke="#0f172a" strokeWidth="0.5" fill="none" />
             </g>
+          ))}
+          {mapOverlaps.map((overlap, index) => (
+            overlap.overlap_polygon?.length > 3 ? (
+              <polygon
+                key={`overlap-${overlap.segment_id}-${overlap.feature_id}-${index}`}
+                points={overlap.overlap_polygon.map(([x, y]) => `${x},${-y}`).join(' ')}
+                fill="#facc15"
+                opacity={overlapOpacity}
+                stroke={showOverlapStroke ? "#ca8a04" : "none"}
+                strokeWidth={showOverlapStroke ? "0.2" : "0"}
+              />
+            ) : null
           ))}
           {state.objects.map((objectRow, index) => (
             <polygon key={`${objectRow.feature_id}-${index}`} points={objectToSvgPolygon(objectRow)} fill="#fb7185" opacity="0.35" />
@@ -373,6 +421,224 @@ function RunPanel({ state, dispatch, client }) {
   );
 }
 
+
+function DiagnosticsPanel({ state, client, onError }) {
+  const [syncResult, setSyncResult] = useState(null);
+  const [overlapResult, setOverlapResult] = useState(null);
+  const [loadingSync, setLoadingSync] = useState(false);
+  const [loadingOverlap, setLoadingOverlap] = useState(false);
+  const [parityStatus, setParityStatus] = useState(null);
+  const [loadingParity, setLoadingParity] = useState(false);
+
+  const payload = buildCanonicalPayload(state);
+
+  const syncNow = async () => {
+    setLoadingSync(true);
+    try {
+      const response = await client.syncLayers(payload);
+      setSyncResult(response);
+      onError('');
+    } catch (error) {
+      onError(error.message);
+    } finally {
+      setLoadingSync(false);
+    }
+  };
+
+  const previewNow = async () => {
+    setLoadingOverlap(true);
+    try {
+      const response = await client.previewCorridorOverlaps(payload);
+      setOverlapResult(response);
+      onError('');
+    } catch (error) {
+      onError(error.message);
+    } finally {
+      setLoadingOverlap(false);
+    }
+  };
+
+  const loadParityStatus = async () => {
+    setLoadingParity(true);
+    try {
+      const response = await client.parityCorpusStatus();
+      setParityStatus(response);
+      onError('');
+    } catch (error) {
+      onError(error.message);
+    } finally {
+      setLoadingParity(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Diagnostics</CardTitle>
+        <CardDescription>Layer lifecycle sync metadata and corridor overlap diagnostics for parity checks.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={syncNow} disabled={loadingSync}>
+            {loadingSync ? 'Syncing…' : 'Sync layers now'}
+          </Button>
+          <Button variant="outline" onClick={previewNow} disabled={loadingOverlap}>
+            {loadingOverlap ? 'Computing…' : 'Preview corridor overlaps'}
+          </Button>
+          <Button variant="outline" onClick={loadParityStatus} disabled={loadingParity}>
+            {loadingParity ? 'Loading…' : 'Corpus parity status'}
+          </Button>
+        </div>
+
+        {syncResult && (
+          <div className="rounded-md border border-slate-200 p-3 space-y-2 text-sm">
+            <p className="font-medium text-slate-900">Layer lifecycle</p>
+            <p className="text-slate-600">Latest revision: {syncResult.lifecycle?.latest_revision ?? 0}</p>
+            <ul className="list-disc pl-5 text-slate-600">
+              <li>Routes: {syncResult.routes?.rows ?? 0} rows · rev {syncResult.routes?.revision ?? 0}</li>
+              <li>Depths: {syncResult.depths?.rows ?? 0} rows · rev {syncResult.depths?.revision ?? 0}</li>
+              <li>Objects: {syncResult.objects?.rows ?? 0} rows · rev {syncResult.objects?.revision ?? 0}</li>
+            </ul>
+          </div>
+        )}
+
+        {parityStatus && (
+          <div className="rounded-md border border-slate-200 p-3 space-y-2 text-sm">
+            <p className="font-medium text-slate-900">Corpus parity status</p>
+            <p className="text-slate-600">Fixtures: {parityStatus.fixture_count} · Missing goldens: {parityStatus.missing_golden_count}</p>
+            <div className="grid grid-cols-2 gap-2 text-xs text-slate-600">
+              <span>segment_data: {parityStatus.schema_sections?.segment_data ?? 0}</span>
+              <span>traffic_data: {parityStatus.schema_sections?.traffic_data ?? 0}</span>
+              <span>depths: {parityStatus.schema_sections?.depths ?? 0}</span>
+              <span>objects: {parityStatus.schema_sections?.objects ?? 0}</span>
+              <span>drift: {parityStatus.schema_sections?.drift ?? 0}</span>
+              <span>routes/legs: {parityStatus.schema_sections?.routes_like ?? 0}</span>
+            </div>
+            {parityStatus.missing_golden_count > 0 && (
+              <ul className="list-disc pl-5 text-slate-600">
+                {parityStatus.missing_golden.slice(0, 6).map((entry) => (
+                  <li key={entry.fixture}>{entry.fixture}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {overlapResult && (
+          <div className="rounded-md border border-slate-200 p-3 space-y-2 text-sm">
+            <p className="font-medium text-slate-900">Corridor overlap diagnostics</p>
+            <p className="text-slate-600">Detected overlaps: {overlapResult.count || 0}</p>
+            {(overlapResult.overlaps || []).length > 0 && (
+              <ul className="list-disc pl-5 text-slate-600">
+                {overlapResult.overlaps.slice(0, 8).map((item, idx) => (
+                  <li key={`${item.segment_id}-${item.feature_id}-${idx}`}>
+                    {item.segment_id} ↔ {item.feature_id} · area {Number(item.overlap_area_m2 || 0).toFixed(2)} m²
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+
+function ImportExportPanel({ state, dispatch, client, onError }) {
+  const [legacyBlob, setLegacyBlob] = useState('');
+  const [iwrapXml, setIwrapXml] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const payload = buildCanonicalPayload(state);
+
+  const exportLegacy = async () => {
+    setBusy(true);
+    try {
+      const response = await client.exportLegacyProject(payload);
+      setLegacyBlob(JSON.stringify(response.legacy_payload || {}, null, 2));
+      onError('');
+    } catch (error) {
+      onError(error.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const importLegacy = async () => {
+    setBusy(true);
+    try {
+      const parsed = JSON.parse(legacyBlob || '{}');
+      const response = await client.importLegacyProject(parsed);
+      dispatch({ type: 'UPSERT_SEGMENTS', segmentData: response.segment_data || [] });
+      dispatch({ type: 'UPSERT_TRAFFIC', trafficData: response.traffic_data || [] });
+      dispatch({ type: 'UPSERT_DEPTHS', depths: response.depths || [] });
+      dispatch({ type: 'UPSERT_OBJECTS', objects: response.objects || [] });
+      dispatch({ type: 'UPDATE_SETTINGS', settings: response.settings || {} });
+      onError('');
+    } catch (error) {
+      onError(error.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const exportIwrap = async () => {
+    setBusy(true);
+    try {
+      const response = await client.exportIwrapXml(payload);
+      setIwrapXml(response.iwrap_xml || '');
+      onError('');
+    } catch (error) {
+      onError(error.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const importIwrap = async () => {
+    setBusy(true);
+    try {
+      const response = await client.importIwrapXml(iwrapXml);
+      dispatch({ type: 'UPSERT_SEGMENTS', segmentData: response.segment_data || [] });
+      dispatch({ type: 'UPSERT_TRAFFIC', trafficData: response.traffic_data || [] });
+      dispatch({ type: 'UPSERT_DEPTHS', depths: response.depths || [] });
+      dispatch({ type: 'UPSERT_OBJECTS', objects: response.objects || [] });
+      dispatch({ type: 'UPDATE_SETTINGS', settings: response.settings || {} });
+      onError('');
+    } catch (error) {
+      onError(error.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Import / Export</CardTitle>
+        <CardDescription>Legacy `.omrat` JSON and IWRAP XML migration workflows in one tab.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+          <Button variant="outline" onClick={exportLegacy} disabled={busy}>Export legacy JSON</Button>
+          <Button variant="outline" onClick={importLegacy} disabled={busy}>Import legacy JSON</Button>
+          <Button variant="outline" onClick={exportIwrap} disabled={busy}>Export IWRAP XML</Button>
+          <Button variant="outline" onClick={importIwrap} disabled={busy}>Import IWRAP XML</Button>
+        </div>
+        <div className="space-y-2">
+          <Label>Legacy payload JSON</Label>
+          <Textarea value={legacyBlob} onChange={(e) => setLegacyBlob(e.target.value)} className="min-h-[180px]" />
+        </div>
+        <div className="space-y-2">
+          <Label>IWRAP XML</Label>
+          <Textarea value={iwrapXml} onChange={(e) => setIwrapXml(e.target.value)} className="min-h-[180px]" />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function ResultsPanel({ state, client, onError }) {
   const [recentRuns, setRecentRuns] = useState([]);
   const [loadingRuns, setLoadingRuns] = useState(false);
@@ -451,7 +717,8 @@ function ResultsPanel({ state, client, onError }) {
 export function RiskWorkbench() {
   const [state, dispatch] = useReducer(workbenchReducer, initialWorkbenchState);
   const [errorMessage, setErrorMessage] = useState('');
-  const client = useMemo(() => createWorkbenchClient(), []);
+  const [locale, setLocale] = useState('en-GB');
+  const client = useMemo(() => createWorkbenchClient('', { locale }), [locale]);
 
   useEffect(() => {
     try {
@@ -489,6 +756,11 @@ export function RiskWorkbench() {
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="secondary">{state.activeTab}</Badge>
+          <div className="flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1">
+            <span className="text-xs text-slate-500">Locale</span>
+            <Button className="px-2 py-1 text-xs" variant={locale === 'en-GB' ? 'secondary' : 'ghost'} onClick={() => setLocale('en-GB')}>EN/GB</Button>
+            <Button className="px-2 py-1 text-xs" variant={locale === 'sv-SE' ? 'secondary' : 'ghost'} onClick={() => setLocale('sv-SE')}>SE/SWE</Button>
+          </div>
           <Button variant="outline" onClick={() => localStorage.removeItem(STORAGE_KEY)}>Clear saved draft</Button>
         </div>
       </div>
@@ -501,7 +773,9 @@ export function RiskWorkbench() {
           <TabsTrigger tabValue="routes">Routes</TabsTrigger>
           <TabsTrigger tabValue="traffic">Data</TabsTrigger>
           <TabsTrigger tabValue="map">Map</TabsTrigger>
+          <TabsTrigger tabValue="diagnostics">Diagnostics</TabsTrigger>
           <TabsTrigger tabValue="run-analysis">Run</TabsTrigger>
+          <TabsTrigger tabValue="import-export">Import/Export</TabsTrigger>
           <TabsTrigger tabValue="results">Results</TabsTrigger>
         </TabsList>
 
@@ -513,10 +787,16 @@ export function RiskWorkbench() {
           <DataEditor dispatch={dispatch} onError={setErrorMessage} />
         </TabsContent>
         <TabsContent tabValue="map">
-          <MapPreviewPanel state={state} />
+          <MapPreviewPanel state={state} client={client} onError={setErrorMessage} />
+        </TabsContent>
+        <TabsContent tabValue="diagnostics">
+          <DiagnosticsPanel state={state} client={client} onError={setErrorMessage} />
         </TabsContent>
         <TabsContent tabValue="run-analysis">
           <RunPanel state={state} dispatch={dispatch} client={client} />
+        </TabsContent>
+        <TabsContent tabValue="import-export">
+          <ImportExportPanel state={state} dispatch={dispatch} client={client} onError={setErrorMessage} />
         </TabsContent>
         <TabsContent tabValue="results">
           <ResultsPanel state={state} client={client} onError={setErrorMessage} />
