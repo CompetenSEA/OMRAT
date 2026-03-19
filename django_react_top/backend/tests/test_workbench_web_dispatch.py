@@ -74,6 +74,30 @@ def test_dispatch_execute_run_async_action():
     assert started["ok"] is True
     assert started["data"]["task_id"] == task_id
 
+    listed = dispatch_workbench_action("list-runs", {"limit": 5})
+    assert listed["ok"] is True
+    assert isinstance(listed["data"]["runs"], list)
+
+    invalid_limit = dispatch_workbench_action("list-runs", {"limit": 0})
+    assert invalid_limit["ok"] is False
+    assert invalid_limit["error"]["type"] == "validation_error"
+
+
+def test_dispatch_enqueue_run_coerces_max_attempts():
+    queued = dispatch_workbench_action("enqueue-run", {**_payload(), "max_attempts": "5"})
+    assert queued["ok"] is True
+    assert queued["data"]["max_attempts"] == 5
+
+
+def test_dispatch_enqueue_run_rejects_invalid_max_attempts():
+    invalid_type = dispatch_workbench_action("enqueue-run", {**_payload(), "max_attempts": "abc"})
+    assert invalid_type["ok"] is False
+    assert invalid_type["error"]["type"] == "validation_error"
+
+    too_small = dispatch_workbench_action("enqueue-run", {**_payload(), "max_attempts": 0})
+    assert too_small["ok"] is False
+    assert too_small["error"]["type"] == "validation_error"
+
 
 def test_dispatch_supports_osm_and_import_actions():
     osm_context = {
@@ -107,11 +131,11 @@ def test_dispatch_supports_osm_and_import_actions():
         {
             "current_state": loaded["data"],
             "incoming_payload": _payload(),
-            "merge": True,
+            "merge": "false",
         },
     )
     assert imported["ok"] is True
-    assert len(imported["data"]["segment_data"]) == 2
+    assert len(imported["data"]["segment_data"]) == 1
 
     ais = dispatch_workbench_action(
         "ingest-ais",
@@ -135,6 +159,72 @@ def test_dispatch_supports_osm_and_import_actions():
     )
     assert crossings["ok"] is True
     assert crossings["data"]["count"] == 1
+
+
+def test_dispatch_import_rejects_invalid_merge_field():
+    loaded = dispatch_workbench_action("load-project", _payload())
+    assert loaded["ok"] is True
+
+    imported = dispatch_workbench_action(
+        "import-project",
+        {
+            "current_state": loaded["data"],
+            "incoming_payload": _payload(),
+            "merge": "maybe",
+        },
+    )
+    assert imported["ok"] is False
+    assert imported["error"]["type"] == "validation_error"
+
+
+def test_dispatch_assess_project_readiness():
+    readiness = dispatch_workbench_action("assess-project-readiness", _payload())
+    assert readiness["ok"] is True
+    assert readiness["data"]["ready_for_run"] is True
+    assert readiness["data"]["counts"]["segments"] == 1
+
+    missing_routes = dispatch_workbench_action(
+        "assess-project-readiness",
+        {
+            "segment_data": [],
+            "traffic_data": [],
+            "depths": [],
+            "objects": [],
+            "settings": {"model_name": "demo", "report_path": "", "causation_version": "v1"},
+        },
+    )
+    assert missing_routes["ok"] is True
+    assert missing_routes["data"]["ready_for_run"] is False
+    assert missing_routes["data"]["counts"]["blocking_issues"] >= 1
+
+
+def test_dispatch_legacy_import_export_actions():
+    legacy_payload = {
+        "segment_data": {"S1": {"Segment_Id": "S1", "Start_Point": "0 0", "End_Point": "5 0", "Width": 50}},
+        "traffic_data": {"S1": {"East going": {"Frequency (ships/year)": [[2, 3]]}}},
+        "depths": [["D1", "-10", ""]],
+        "objects": [["O1", "12", ""]],
+        "model_name": "legacy",
+        "report_path": "/tmp/r.md",
+    }
+    imported = dispatch_workbench_action("import-legacy-project", legacy_payload)
+    assert imported["ok"] is True
+    assert imported["data"]["segment_data"][0]["segment_id"] == "S1"
+
+    exported = dispatch_workbench_action("export-legacy-project", _payload())
+    assert exported["ok"] is True
+    assert "legacy_payload" in exported["data"]
+
+    exported_iwrap = dispatch_workbench_action("export-iwrap-xml", _payload())
+    assert exported_iwrap["ok"] is True
+    assert "<riskmodel" in exported_iwrap["data"]["iwrap_xml"]
+
+    imported_iwrap = dispatch_workbench_action(
+        "import-iwrap-xml",
+        {"iwrap_xml": exported_iwrap["data"]["iwrap_xml"]},
+    )
+    assert imported_iwrap["ok"] is True
+    assert len(imported_iwrap["data"]["segment_data"]) >= 1
 
 
 def test_dispatch_enforces_auth_and_project_scope(monkeypatch):

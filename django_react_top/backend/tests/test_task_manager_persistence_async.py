@@ -82,3 +82,18 @@ def test_task_retry_and_claim_cycle():
     manager.claim_next_queued_task()
     failed = manager.schedule_retry(record.task_id, error="again", retry_in_seconds=0)
     assert failed.state == "failed"
+
+
+def test_task_manager_list_tasks_filters_and_limits():
+    manager = TaskManagerService()
+    t1 = manager.create_task(_payload(), message="first")
+    t2 = manager.create_task(_payload(), message="second")
+    manager.complete_task(t1.task_id, {"status": "completed"})
+    manager.fail_task(t2.task_id, "boom")
+
+    completed = manager.list_tasks(limit=10, state="completed")
+    assert len(completed) == 1
+    assert completed[0].task_id == t1.task_id
+
+    limited = manager.list_tasks(limit=1)
+    assert len(limited) == 1

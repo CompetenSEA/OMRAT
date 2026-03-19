@@ -298,8 +298,26 @@ function MapPreviewPanel({ state }) {
 
 function RunPanel({ state, dispatch, client }) {
   const { running, startRun } = useRunLifecycle(client, dispatch);
+  const [readiness, setReadiness] = useState(null);
+  const [checkingReadiness, setCheckingReadiness] = useState(false);
+
+  const checkReadiness = async () => {
+    setCheckingReadiness(true);
+    try {
+      const payload = buildCanonicalPayload(state);
+      const result = await client.assessProjectReadiness(payload);
+      setReadiness(result);
+      return result;
+    } finally {
+      setCheckingReadiness(false);
+    }
+  };
 
   const onRun = async () => {
+    const readinessResult = await checkReadiness();
+    if (!readinessResult.ready_for_run) {
+      return;
+    }
     const payload = buildCanonicalPayload(state);
     await startRun(payload);
   };
@@ -308,11 +326,39 @@ function RunPanel({ state, dispatch, client }) {
     <Card>
       <CardHeader>
         <CardTitle>Run analysis</CardTitle>
-        <CardDescription>Task-like progress UX mirrors backend enqueue/execute/poll behavior.</CardDescription>
+        <CardDescription>Task-like progress UX mirrors backend enqueue/execute/poll behavior with readiness gating.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Button onClick={onRun} disabled={running || !state.segmentData.length}>{running ? 'Running...' : 'Start analysis'}</Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={checkReadiness} disabled={running || checkingReadiness}>
+            {checkingReadiness ? 'Checking...' : 'Check readiness'}
+          </Button>
+          <Button onClick={onRun} disabled={running || checkingReadiness || !state.segmentData.length || (readiness && !readiness.ready_for_run)}>
+            {running ? 'Running...' : 'Start analysis'}
+          </Button>
+        </div>
         {!state.segmentData.length && <Alert variant="warning">Add at least one route segment before running.</Alert>}
+        {readiness && (
+          <div className="rounded-md border border-slate-200 p-3 space-y-2">
+            <div className="flex items-center gap-2">
+              <Badge variant={readiness.ready_for_run ? 'success' : 'warning'}>
+                {readiness.ready_for_run ? 'Ready for run' : 'Action needed'}
+              </Badge>
+              <span className="text-xs text-slate-500">
+                {readiness.counts.blocking_issues} blocking / {readiness.counts.warnings} warnings
+              </span>
+            </div>
+            {readiness.issues.length > 0 && (
+              <ul className="list-disc pl-5 text-sm text-slate-700 space-y-1">
+                {readiness.issues.map((issue) => (
+                  <li key={issue.id}>
+                    <span className="font-medium">{issue.area}:</span> {issue.message}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
         {state.runTask && (
           <div className="rounded-md border border-slate-200 p-3">
             <div className="mb-2 flex items-center justify-between">
@@ -327,7 +373,23 @@ function RunPanel({ state, dispatch, client }) {
   );
 }
 
-function ResultsPanel({ state }) {
+function ResultsPanel({ state, client, onError }) {
+  const [recentRuns, setRecentRuns] = useState([]);
+  const [loadingRuns, setLoadingRuns] = useState(false);
+
+  const refreshRuns = async () => {
+    setLoadingRuns(true);
+    try {
+      const response = await client.listRuns(10);
+      setRecentRuns(response.runs || []);
+      onError('');
+    } catch (error) {
+      onError(error.message);
+    } finally {
+      setLoadingRuns(false);
+    }
+  };
+
   if (!state.runSummary) {
     return (
       <Card>
@@ -335,6 +397,23 @@ function ResultsPanel({ state }) {
           <CardTitle>Results</CardTitle>
           <CardDescription>No run completed yet.</CardDescription>
         </CardHeader>
+        <CardContent className="space-y-3">
+          <Button variant="outline" onClick={refreshRuns} disabled={loadingRuns}>
+            {loadingRuns ? 'Refreshing…' : 'Load recent runs'}
+          </Button>
+          {recentRuns.length > 0 && (
+            <div className="space-y-2 rounded-md border border-slate-200 p-3">
+              <p className="text-sm font-medium text-slate-900">Recent completed runs</p>
+              <ul className="space-y-1 text-xs text-slate-600">
+                {recentRuns.map((run) => (
+                  <li key={run.task_id}>
+                    <span className="font-medium">{run.task_id}</span> · {run.status} · {run.report_path || 'no report path'}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </CardContent>
       </Card>
     );
   }
@@ -347,6 +426,23 @@ function ResultsPanel({ state }) {
       </CardHeader>
       <CardContent>
         <pre className="overflow-auto rounded-md bg-slate-950 p-4 text-xs text-slate-100">{JSON.stringify(state.runSummary, null, 2)}</pre>
+        <div className="mt-4 space-y-3">
+          <Button variant="outline" onClick={refreshRuns} disabled={loadingRuns}>
+            {loadingRuns ? 'Refreshing…' : 'Refresh recent runs'}
+          </Button>
+          {recentRuns.length > 0 && (
+            <div className="space-y-2 rounded-md border border-slate-200 p-3">
+              <p className="text-sm font-medium text-slate-900">Recent completed runs</p>
+              <ul className="space-y-1 text-xs text-slate-600">
+                {recentRuns.map((run) => (
+                  <li key={run.task_id}>
+                    <span className="font-medium">{run.task_id}</span> · {run.status} · {run.report_path || 'no report path'}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
@@ -423,7 +519,7 @@ export function RiskWorkbench() {
           <RunPanel state={state} dispatch={dispatch} client={client} />
         </TabsContent>
         <TabsContent tabValue="results">
-          <ResultsPanel state={state} />
+          <ResultsPanel state={state} client={client} onError={setErrorMessage} />
         </TabsContent>
       </Tabs>
     </div>

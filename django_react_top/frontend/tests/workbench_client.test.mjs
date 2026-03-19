@@ -80,6 +80,33 @@ test('client unwraps envelope responses and exposes standalone actions', async (
   const scene = await client.buildOsmScene({ land_features: [], fixed_object_features: [] });
   assert.deepEqual(scene.echoed.osm_context, { land_features: [], fixed_object_features: [] });
 
+  const importedLegacy = await client.importLegacyProject({ segment_data: {} });
+  assert.deepEqual(importedLegacy.echoed.segment_data, {});
+
+  const exportedLegacy = await client.exportLegacyProject({
+    segment_data: [],
+    traffic_data: [],
+    depths: [],
+    objects: [],
+    settings: {},
+  });
+  assert.equal(Array.isArray(exportedLegacy.echoed.segment_data), true);
+
+  const exportedIwrap = await client.exportIwrapXml({
+    segment_data: [],
+    traffic_data: [],
+    depths: [],
+    objects: [],
+    settings: {},
+  });
+  assert.equal(Array.isArray(exportedIwrap.echoed.segment_data), true);
+
+  const importedIwrap = await client.importIwrapXml('<xml />');
+  assert.equal(importedIwrap.echoed.iwrap_xml, '<xml />');
+
+  const listedRuns = await client.listRuns(5);
+  assert.equal(listedRuns.echoed.limit, 5);
+
   const processed = await client.processQueue();
   assert.equal(processed.echoed && typeof processed.echoed, 'object');
 
@@ -125,6 +152,60 @@ test('client sends bearer auth token when configured', async () => {
   const result = await client.syncLayers({ segment_data: [] });
   assert.equal(result.accepted, true);
   assert.equal(seenAuthHeader, 'Bearer secret-token');
+
+  global.fetch = originalFetch;
+});
+
+test('readiness action uses fallback model when offline', async () => {
+  const originalFetch = global.fetch;
+  global.fetch = async () => {
+    throw new Error('offline');
+  };
+
+  const client = createWorkbenchClient();
+  const readiness = await client.assessProjectReadiness({
+    segment_data: [],
+    traffic_data: [],
+    depths: [],
+    objects: [],
+    settings: { model_name: 'demo', report_path: '' },
+  });
+
+  assert.equal(readiness.ready_for_run, false);
+  assert.equal(readiness.counts.blocking_issues > 0, true);
+  assert.equal(readiness.counts.warnings > 0, true);
+
+  global.fetch = originalFetch;
+});
+
+test('readiness action unwraps server envelope response', async () => {
+  const originalFetch = global.fetch;
+  global.fetch = async (_url, options) => ({
+    ok: true,
+    async json() {
+      return {
+        ok: true,
+        data: {
+          ready_for_run: true,
+          counts: { blocking_issues: 0, warnings: 0 },
+          issues: [],
+          echoed: JSON.parse(options.body),
+        },
+      };
+    },
+  });
+
+  const client = createWorkbenchClient();
+  const payload = {
+    segment_data: [{ segment_id: 'S1', coords: [[0, 0], [1, 1]] }],
+    traffic_data: [{ segment_id: 'S1' }],
+    depths: [{ feature_id: 'D1' }],
+    objects: [{ feature_id: 'O1' }],
+    settings: { model_name: 'demo', report_path: '/tmp/report.md' },
+  };
+  const readiness = await client.assessProjectReadiness(payload);
+  assert.equal(readiness.ready_for_run, true);
+  assert.equal(readiness.echoed.settings.model_name, 'demo');
 
   global.fetch = originalFetch;
 });

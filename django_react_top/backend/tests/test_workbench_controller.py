@@ -67,6 +67,10 @@ def test_controller_run_queue_and_execute_flow():
     fetched = controller.get_task(queued["task_id"])
     assert fetched["state"] == "completed"
 
+    recent = controller.list_recent_runs(limit=5)
+    assert len(recent["runs"]) >= 1
+    assert recent["runs"][0]["status"] == "completed"
+
 
 def test_controller_exposes_sync_preview_and_osm_helpers():
     controller = WorkbenchController()
@@ -101,3 +105,42 @@ def test_controller_create_route_segment_shape():
     assert segment["bearing_deg"] == 90.0
     assert segment["tangent_line"]["start"] == (8.0, 0.0)
     assert segment["tangent_line"]["end"] == (8.0, 4.0)
+
+
+def test_controller_assess_project_readiness():
+    controller = WorkbenchController()
+    readiness = controller.assess_project_readiness(_sample_payload())
+    assert readiness["ready_for_run"] is True
+    assert readiness["counts"]["segments"] == 1
+
+
+def test_controller_legacy_import_export():
+    controller = WorkbenchController()
+    legacy_payload = {
+        "segment_data": {"S1": {"Segment_Id": "S1", "Start_Point": "0 0", "End_Point": "5 0", "Width": 50}},
+        "traffic_data": {"S1": {"East going": {"Frequency (ships/year)": [[1, 1]]}}},
+        "depths": [["D1", "-10", ""]],
+        "objects": [["O1", "12", ""]],
+        "model_name": "legacy",
+    }
+    imported = controller.import_legacy_project(legacy_payload)
+    assert imported["segment_data"][0]["segment_id"] == "S1"
+
+    exported = controller.export_legacy_project(imported)
+    assert "legacy_payload" in exported
+
+
+def test_controller_iwrap_import_export():
+    controller = WorkbenchController()
+    canonical_payload = {
+        "segment_data": [{"segment_id": "S1", "from_waypoint": "A", "to_waypoint": "B", "width_m": 50, "coords": [(0, 0), (1, 1)]}],
+        "traffic_data": [{"segment_id": "S1", "ship_category": "East going", "annual_transits": 4}],
+        "depths": [],
+        "objects": [],
+        "settings": {"model_name": "demo", "report_path": "/tmp/demo.md", "causation_version": "v1"},
+    }
+    exported = controller.export_iwrap_xml(canonical_payload)
+    assert "<riskmodel" in exported["iwrap_xml"]
+
+    imported = controller.import_iwrap_xml(exported["iwrap_xml"])
+    assert len(imported["segment_data"]) >= 1

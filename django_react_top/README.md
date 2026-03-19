@@ -32,11 +32,16 @@ Implemented backend boundaries that map directly to the standalone web workflow:
 - **Stateful task API façade** (`api/workbench_state_api.py`) for enqueue/execute/get-task route + run flows.
 - **Stateful controller** (`api/workbench_controller.py`) with task queue semantics for background task UX.
 - **Web endpoint dispatcher** (`web/workbench_views.py`) for Django-ready action routing with normalized response envelopes.
+- **Readiness diagnostics service** (`services/readiness_service.py`) and `assess-project-readiness` endpoint for plugin-style pre-run checks.
+- **Legacy `.omrat` compatibility adapters** via `import-legacy-project` and `export-legacy-project` web actions.
+- **IWRAP XML compatibility adapters** via `import-iwrap-xml` and `export-iwrap-xml` web actions.
 
 Implemented frontend workflow modules:
 
 - **Workflow reducer** (`frontend/.../model/workbenchState.js`) for tab progression and run lifecycle state.
 - **Workbench UI shell** (`frontend/.../components/RiskWorkbench.jsx`) using shadcn/ui-style components for route-to-results UX, validation feedback, draft persistence, and map-tool-like route drawing.
+- **Run-readiness UX** integrated into Run tab (backend-driven checks + client fallback) to block invalid run execution paths.
+- **Results run-history UX** integrated into Results tab via `list-runs` loading of recent completed runs.
 - **Map preview helpers** (`frontend/.../model/mapPreview.js`) for SVG-friendly route/object rendering.
 - **OSM scene model** (`frontend/.../model/osmSceneModel.js`) for land/fixed-object visualization layers.
 
@@ -65,5 +70,12 @@ Implemented frontend workflow modules:
 ## Production readiness status
 
 - Queue processing now supports claim/retry semantics (`claim_next_queued_task`, `schedule_retry`) and worker polling via `process-queue` action.
+- Recent completed run summaries are queryable via `list-runs` for dashboard/history UX.
 - ORM domain models now cover project, run, report artifact, API token, and audit event entities in addition to tasks/AIS.
 - Authorization now supports role/action policies via token registry and writes structured audit logs for every dispatch outcome.
+- Golden compatibility tests now include a seed plugin fixture (`tests/test_res.omrat`) for `.omrat` and IWRAP roundtrip sanity checks.
+
+## Refactor backlog tracker
+
+- Live outstanding issues list and plugin/web parity tracker:
+  - `django_react_top/OUTSTANDING_REFACTOR_ISSUES.md`

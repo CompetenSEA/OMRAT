@@ -286,6 +286,94 @@ class TaskManagerService:
             return self._read_postgres(task_id)
         return None
 
+    def _list_sqlite(self, *, limit: int, state: str | None = None) -> list[TaskRecord]:
+        if self._backend != "sqlite":
+            return []
+        query = """
+            SELECT task_id, state, created_at, updated_at, progress, message, payload_json, result_json, error, attempts, max_attempts, next_retry_at
+            FROM task_records
+        """
+        params: list[Any] = []
+        if state:
+            query += " WHERE state = ?"
+            params.append(state)
+        query += " ORDER BY updated_at DESC LIMIT ?"
+        params.append(limit)
+        with sqlite3.connect(self._db_path) as conn:
+            rows = conn.execute(query, params).fetchall()
+        records: list[TaskRecord] = []
+        for row in rows:
+            payload = json.loads(row[6]) if row[6] else {}
+            result = json.loads(row[7]) if row[7] else None
+            records.append(
+                TaskRecord(
+                    task_id=row[0],
+                    state=row[1],
+                    created_at=row[2],
+                    updated_at=row[3],
+                    progress=int(row[4]),
+                    message=row[5],
+                    payload=payload,
+                    result=result,
+                    error=row[8],
+                    attempts=int(row[9]),
+                    max_attempts=int(row[10]),
+                    next_retry_at=row[11],
+                )
+            )
+        return records
+
+    def _list_postgres(self, *, limit: int, state: str | None = None) -> list[TaskRecord]:
+        if self._backend != "postgres":
+            return []
+        conn = self._connect_postgres()
+        with conn:
+            with conn.cursor() as cur:
+                if state:
+                    cur.execute(
+                        """
+                        SELECT task_id, state, created_at, updated_at, progress, message, payload_json, result_json, error, attempts, max_attempts, next_retry_at
+                        FROM omrat_task_records
+                        WHERE state = %s
+                        ORDER BY updated_at DESC
+                        LIMIT %s
+                        """,
+                        (state, limit),
+                    )
+                else:
+                    cur.execute(
+                        """
+                        SELECT task_id, state, created_at, updated_at, progress, message, payload_json, result_json, error, attempts, max_attempts, next_retry_at
+                        FROM omrat_task_records
+                        ORDER BY updated_at DESC
+                        LIMIT %s
+                        """,
+                        (limit,),
+                    )
+                rows = cur.fetchall()
+        conn.close()
+        records: list[TaskRecord] = []
+        for row in rows:
+            payload = row[6] if isinstance(row[6], dict) else json.loads(row[6]) if row[6] else {}
+            result = row[7] if isinstance(row[7], dict) else json.loads(row[7]) if row[7] else None
+            records.append(
+                TaskRecord(
+                    task_id=row[0],
+                    state=row[1],
+                    created_at=row[2],
+                    updated_at=row[3],
+                    progress=int(row[4]),
+                    message=row[5],
+                    payload=payload,
+                    result=result,
+                    error=row[8],
+                    attempts=int(row[9]),
+                    max_attempts=int(row[10]),
+                    next_retry_at=row[11],
+                )
+            )
+        return records
+
     def create_task(
         self,
         payload: dict[str, Any],
@@ -393,3 +481,22 @@ class TaskManagerService:
         record.updated_at = self._now()
         self._persist_record(record)
         return record
+
+    def list_tasks(self, *, limit: int = 20, state: str | None = None) -> list[TaskRecord]:
+        limit = max(1, int(limit))
+        if self._backend == "sqlite":
+            records = self._list_sqlite(limit=limit, state=state)
+            for record in records:
+                self._tasks[record.task_id] = record
+            return records
+        if self._backend == "postgres":
+            records = self._list_postgres(limit=limit, state=state)
+            for record in records:
+                self._tasks[record.task_id] = record
+            return records
+
+        in_memory = list(self._tasks.values())
+        if state:
+            in_memory = [task for task in in_memory if task.state == state]
+        in_memory.sort(key=lambda item: item.updated_at, reverse=True)
+        return in_memory[:limit]

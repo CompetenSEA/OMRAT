@@ -40,6 +40,54 @@ export function createWorkbenchClient(baseUrl = '', options = {}) {
     return request(`/api/workbench/${action}`, body);
   }
 
+  function fallbackReadiness(payload) {
+    const segments = Array.isArray(payload.segment_data) ? payload.segment_data : [];
+    const traffic = Array.isArray(payload.traffic_data) ? payload.traffic_data : [];
+    const depths = Array.isArray(payload.depths) ? payload.depths : [];
+    const objects = Array.isArray(payload.objects) ? payload.objects : [];
+    const settings = payload.settings || {};
+
+    const issues = [];
+    if (!segments.length) {
+      issues.push({ id: 'routes_missing', area: 'routes', severity: 'blocking', message: 'No route segments are defined.' });
+    }
+    const missingCoords = segments.filter((s) => !Array.isArray(s.coords) || !s.coords.length).map((s) => s.segment_id);
+    if (missingCoords.length) {
+      issues.push({ id: 'route_coords_missing', area: 'routes', severity: 'blocking', message: 'One or more route segments are missing coordinates.', segments: missingCoords });
+    }
+    const trafficSegments = new Set(traffic.map((row) => row.segment_id));
+    const missingTraffic = segments.map((s) => s.segment_id).filter((id) => !trafficSegments.has(id));
+    if (missingTraffic.length) {
+      issues.push({ id: 'traffic_missing_for_segments', area: 'traffic', severity: 'blocking', message: 'One or more segments have no traffic rows.', segments: missingTraffic });
+    }
+    if (!depths.length) {
+      issues.push({ id: 'depths_missing', area: 'depths', severity: 'warning', message: 'No depth polygons are present.' });
+    }
+    if (!objects.length) {
+      issues.push({ id: 'objects_missing', area: 'objects', severity: 'warning', message: 'No fixed objects are present.' });
+    }
+    if (!String(settings.model_name || '').trim()) {
+      issues.push({ id: 'model_name_missing', area: 'run-settings', severity: 'blocking', message: 'Model name is empty.' });
+    }
+    if (!String(settings.report_path || '').trim()) {
+      issues.push({ id: 'report_path_missing', area: 'run-settings', severity: 'warning', message: 'Report path is empty.' });
+    }
+    const blockingIssues = issues.filter((issue) => issue.severity === 'blocking').length;
+    const warnings = issues.filter((issue) => issue.severity === 'warning').length;
+    return {
+      ready_for_run: blockingIssues === 0,
+      counts: {
+        segments: segments.length,
+        traffic_rows: traffic.length,
+        depth_rows: depths.length,
+        object_rows: objects.length,
+        blocking_issues: blockingIssues,
+        warnings,
+      },
+      issues,
+    };
+  }
+
   return {
     postAction,
 
@@ -144,6 +192,22 @@ export function createWorkbenchClient(baseUrl = '', options = {}) {
       });
     },
 
+    async importLegacyProject(legacyPayload) {
+      return postAction('import-legacy-project', legacyPayload);
+    },
+
+    async exportLegacyProject(payload) {
+      return postAction('export-legacy-project', payload);
+    },
+
+    async exportIwrapXml(payload) {
+      return postAction('export-iwrap-xml', payload);
+    },
+
+    async importIwrapXml(iwrapXml) {
+      return postAction('import-iwrap-xml', { iwrap_xml: iwrapXml });
+    },
+
     async ingestAis(rows) {
       return postAction('ingest-ais', { rows });
     },
@@ -162,6 +226,19 @@ export function createWorkbenchClient(baseUrl = '', options = {}) {
 
     async processQueue() {
       return postAction('process-queue', {});
+    },
+
+    async listRuns(limit = 20) {
+      return postAction('list-runs', { limit });
+    },
+
+    async assessProjectReadiness(payload) {
+      try {
+        return await postAction('assess-project-readiness', payload);
+      } catch {
+        if (strictServer) throw new Error('Readiness API unavailable in strict-server mode');
+        return fallbackReadiness(payload);
+      }
     },
   };
 }
