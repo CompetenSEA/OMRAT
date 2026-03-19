@@ -81,3 +81,23 @@ def test_controller_exposes_sync_preview_and_osm_helpers():
     assert preview["count"] == 1
     assert len(scene["fixed_objects"]) == 1
     assert crossings["count"] == 1
+
+
+def test_controller_create_route_segment_shape():
+    controller = WorkbenchController()
+    segment = controller.create_route_segment(
+        {
+            "start_point": (2, 2),
+            "end_point": (14, 2),
+            "segment_id": 2,
+            "route_id": 5,
+            "tangent_offset_m": 2,
+            "width_m": 80,
+        }
+    )
+
+    assert segment["label"] == "LEG_2_5"
+    assert segment["leg_direction"] == "E"
+    assert segment["bearing_deg"] == 90.0
+    assert segment["tangent_line"]["start"] == (8.0, 0.0)
+    assert segment["tangent_line"]["end"] == (8.0, 4.0)

@@ -24,20 +24,24 @@ Implemented backend boundaries that map directly to plugin behavior:
 - **Project I/O service** (`project_io.py`) with explicit clear-vs-merge semantics.
 - **AIS ingestion service** (`ais_ingestion.py`) for traffic data writes.
 - **Map layer lifecycle service** (`map_layer_service.py`) + in-memory layer store.
+- **Route editing service** (`route_editing_service.py`) replacing QGIS leg/tangent helpers.
 - **Execution adapter boundary** (`execution_adapter.py`) with pure simulation adapter.
 - **Geometry engine** (`geometry_engine.py`) for corridor/object overlap diagnostics.
 - **OSM scene service** (`osm_scene_service.py`) for land/fixed-object assumptions and crossings.
 - **Stateless API façade** (`api/workbench_api.py`) for load/import/sync/preview/run/OSM.
+- **Stateful task API façade** (`api/workbench_state_api.py`) for enqueue/execute/get-task route + run flows.
 - **Stateful controller** (`api/workbench_controller.py`) with task queue semantics to mimic background task UX.
 
 Implemented frontend mimic behavior modules:
 
 - **Workflow reducer** (`frontend/.../model/workbenchState.js`) for tab progression and run lifecycle state.
+- **Workbench UI shell** (`frontend/.../components/RiskWorkbench.jsx`) using shadcn/ui-style components for route-to-results UX, validation feedback, draft persistence, and map-tool-like route drawing.
 - **Map preview helpers** (`frontend/.../model/mapPreview.js`) for SVG-friendly route/object rendering.
 - **OSM scene model** (`frontend/.../model/osmSceneModel.js`) for land/fixed-object visualization layers.
 
 ## QGIS-behavior mimic mapping
 
+- Route point-pair/tangent/leg generation (including direction and corridor polygon) -> `create_route_segment(payload)` + `RouteEditingService`
 - Route/depth/object layer sync -> `sync_layers(payload)` and `MapLayerService`
 - Geometry diagnostics panel -> `preview_corridor_overlaps(payload)` + `GeometryEngine`
 - Land/fixed object assumptions -> `build_osm_scene(...)` + `evaluate_land_crossings(...)`
