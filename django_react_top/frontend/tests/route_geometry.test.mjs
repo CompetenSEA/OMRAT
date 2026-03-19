@@ -19,7 +19,7 @@ test('buildCorridorPolygon closes polygon ring', () => {
   assert.deepEqual(polygon[0], polygon[polygon.length - 1]);
 });
 
-test('buildSegmentDraft includes qgis-mimic metadata', () => {
+test('buildSegmentDraft includes standalone route metadata', () => {
   const draft = buildSegmentDraft({
     startPoint: [2, 2],
     endPoint: [12, 2],

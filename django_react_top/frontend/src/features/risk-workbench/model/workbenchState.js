@@ -1,6 +1,6 @@
 /**
- * Frontend state reducer that mimics QGIS plugin tab/workflow transitions
- * without relying on QGIS APIs.
+ * Frontend state reducer aligned to legacy plugin tab/workflow transitions
+ * with no desktop GIS dependency.
  */
 
 export const initialWorkbenchState = {
