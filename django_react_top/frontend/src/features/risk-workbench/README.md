@@ -57,5 +57,6 @@ All tab submissions should use backend canonical payload keys:
 - `api/workbenchClient.js` supports `authToken` (Bearer headers) and `strictServer` mode to disable all local fallbacks in production deployments.
 
 - Route editor internals are split into `components/RouteCanvas.jsx` and `components/SegmentTable.jsx` for maintainable UI logic and reusable interaction patterns.
+- Map tab now supports a lightweight OpenStreetMap XYZ underlay (test-purpose basemap), with lon/lat guardrails, editable OSM GeoJSON context inputs, backend scene construction, and land-crossing evaluation hooks.
 - Frontend Node tests now cover route geometry semantics and `workbenchClient` fallback behavior under `frontend/tests/*.test.mjs`.
 - `hooks/useRunLifecycle.js` now drives enqueue/execute/poll run state transitions using backend-first client methods with fallback behavior for local/dev UX parity.
