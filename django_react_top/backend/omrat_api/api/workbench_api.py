@@ -14,6 +14,7 @@ from omrat_api.services.ais_ingestion import AISIngestionService
 from omrat_api.services.map_layer_service import MapLayerService
 from omrat_api.services.osm_scene_service import OSMSceneService
 from omrat_api.services.project_io import ProjectIOService
+from omrat_api.services.route_editing_service import RouteEditingService
 from omrat_api.services.run_orchestration import RunOrchestrationService
 
 _LAYER_STORE = LayerStore()
@@ -44,6 +45,19 @@ def build_osm_scene(osm_context: Dict[str, Any]) -> Dict[str, Any]:
 def evaluate_land_crossings(payload: Dict[str, Any], osm_context: Dict[str, Any]) -> Dict[str, Any]:
     return OSMSceneService.compute_land_crossings(payload, osm_context)
 
+
+
+
+def create_route_segment(payload: Dict[str, Any]) -> Dict[str, Any]:
+    draft = RouteEditingService.build_segment_draft(
+        payload["start_point"],
+        payload["end_point"],
+        segment_id=payload.get("segment_id", 1),
+        route_id=payload.get("route_id", 1),
+        width_m=payload.get("width_m", 2500),
+        tangent_offset_m=payload.get("tangent_offset_m", 2500),
+    )
+    return asdict(draft)
 
 def start_analysis(payload: Dict[str, Any]) -> Dict[str, Any]:
     summary = RunOrchestrationService().start_run(payload)

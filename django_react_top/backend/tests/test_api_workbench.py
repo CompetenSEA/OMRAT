@@ -1,5 +1,6 @@
 from omrat_api.api.workbench_api import (
     build_osm_scene,
+    create_route_segment,
     evaluate_land_crossings,
     ingest_ais,
     import_project,
@@ -155,3 +156,24 @@ def test_start_analysis_uses_simulation_adapter_with_osm_context():
     assert summary["drifting_summary"]["objects"] >= 1
     assert summary["osm_summary"]["land_crossing_count"] == 1
     assert summary["osm_summary"]["osm_fixed_objects_added"] == 1
+
+
+def test_create_route_segment_replaces_qgis_leg_generation():
+    segment = create_route_segment(
+        {
+            "start_point": (2, 2),
+            "end_point": (12, 2),
+            "segment_id": 7,
+            "route_id": 3,
+            "width_m": 100,
+            "tangent_offset_m": 4,
+        }
+    )
+
+    assert segment["label"] == "LEG_7_3"
+    assert segment["coords"] == [(2.0, 2.0), (12.0, 2.0)]
+    assert segment["leg_direction"] == "E"
+    assert segment["bearing_deg"] == 90.0
+    assert segment["tangent_line"]["start"] == (7.0, -2.0)
+    assert segment["tangent_line"]["end"] == (7.0, 6.0)
+    assert len(segment["corridor_polygon"]) == 5

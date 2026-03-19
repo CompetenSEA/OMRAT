@@ -9,6 +9,7 @@ from typing import Any
 
 from omrat_api.api.workbench_api import (
     build_osm_scene,
+    create_route_segment,
     evaluate_land_crossings,
     ingest_ais,
     import_project,
@@ -44,6 +45,10 @@ class WorkbenchController:
         self, payload: dict[str, Any], osm_context: dict[str, Any]
     ) -> dict[str, Any]:
         return evaluate_land_crossings(payload, osm_context)
+
+
+    def create_route_segment(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return create_route_segment(payload)
 
     def sync_layers(self, payload: dict[str, Any]) -> dict[str, Any]:
         return sync_layers(payload)
