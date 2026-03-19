@@ -1,5 +1,7 @@
 import json
+import os
 from pathlib import Path
+import xml.etree.ElementTree as ET
 
 import pytest
 
@@ -9,17 +11,26 @@ from omrat_api.services.iwrap_service import _load_iwrap_functions
 
 def _legacy_fixture(path: str) -> dict:
     repo_root = Path(__file__).resolve().parents[3]
-    return json.loads((repo_root / path).read_text(encoding="utf-8"))
+    fixture_path = Path(path)
+    if not fixture_path.is_absolute():
+        fixture_path = repo_root / path
+    return json.loads(fixture_path.read_text(encoding="utf-8"))
 
 
 def _legacy_fixture_paths() -> list[str]:
     repo_root = Path(__file__).resolve().parents[3]
     roots = [repo_root / "tests", repo_root / "django_react_top" / "backend" / "tests" / "corpus"]
-    return sorted(
-        p.relative_to(repo_root).as_posix()
-        for root in roots
-        for p in root.rglob("*.omrat")
-    )
+    extra_root = os.getenv("OMRAT_EXTRA_CORPUS_DIR", "").strip()
+    if extra_root:
+        roots.append(Path(extra_root))
+    paths = []
+    for root in roots:
+        for fixture in root.rglob("*.omrat"):
+            try:
+                paths.append(fixture.relative_to(repo_root).as_posix())
+            except ValueError:
+                paths.append(str(fixture.resolve()))
+    return sorted(paths)
 
 
 def _golden_plugin_xml_path_for_fixture(fixture_path: str) -> Path:
@@ -64,3 +75,45 @@ def test_web_iwrap_export_matches_plugin_golden_field_projection(fixture_path: s
         plugin_legacy = parse_iwrap_xml(str(plugin_path))
 
     assert _legacy_projection(web_legacy) == _legacy_projection(plugin_legacy)
+
+
+@pytest.mark.parametrize("fixture_path", _legacy_fixture_paths())
+def test_web_iwrap_export_contains_core_sections_for_schema_coverage(fixture_path: str):
+    canonical = import_legacy_project(_legacy_fixture(fixture_path))
+    web_xml = export_iwrap_xml(canonical)["iwrap_xml"]
+
+    assert "<riskmodel" in web_xml
+    assert "<route" in web_xml
+    assert "<traffic" in web_xml
+
+
+def test_iwrap_corpus_and_golden_pairing_is_complete():
+    fixture_paths = _legacy_fixture_paths()
+    missing = []
+    for fixture_path in fixture_paths:
+        golden = _golden_plugin_xml_path_for_fixture(fixture_path)
+        if not golden.exists():
+            missing.append((fixture_path, str(golden)))
+    assert not missing, f"Missing golden plugin XML for fixtures: {missing}"
+
+
+@pytest.mark.parametrize("fixture_path", _legacy_fixture_paths())
+def test_web_iwrap_export_carries_core_riskmodel_attributes(fixture_path: str):
+    canonical = import_legacy_project(_legacy_fixture(fixture_path))
+    web_xml = export_iwrap_xml(canonical)["iwrap_xml"]
+
+    assert 'fv="' in web_xml
+    assert 'major="' in web_xml
+    assert 'minor="' in web_xml
+    assert 'current_season="' in web_xml
+
+
+@pytest.mark.parametrize("fixture_path", _legacy_fixture_paths())
+def test_web_iwrap_export_contains_extended_schema_nodes(fixture_path: str):
+    canonical = import_legacy_project(_legacy_fixture(fixture_path))
+    web_xml = export_iwrap_xml(canonical)["iwrap_xml"]
+    root = ET.fromstring(web_xml)
+
+    required_nodes = ["traffic_distributions", "waypoints", "legs", "routes", "global_settings"]
+    for node in required_nodes:
+        assert root.find(node) is not None, f"Missing node '{node}' for fixture {fixture_path}"

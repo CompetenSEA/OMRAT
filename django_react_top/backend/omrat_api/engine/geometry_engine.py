@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Iterable, List, Mapping
 
 from shapely.geometry import LineString, Polygon
+from shapely.geometry.base import BaseGeometry
 
 
 @dataclass(frozen=True)
@@ -27,7 +28,26 @@ class CorridorOverlap:
     segment_id: str
     feature_id: str
     overlap_area_m2: float
+    overlap_polygon: list[tuple[float, float]] | None = None
 
+
+
+
+def _extract_polygon_coords(geometry: BaseGeometry) -> list[tuple[float, float]] | None:
+    if geometry.is_empty:
+        return None
+    candidate = geometry
+    if geometry.geom_type == "MultiPolygon":
+        try:
+            candidate = max(geometry.geoms, key=lambda g: g.area)
+        except ValueError:
+            return None
+    if candidate.geom_type != "Polygon":
+        return None
+    coords = list(candidate.exterior.coords)
+    if len(coords) < 4:
+        return None
+    return [(float(x), float(y)) for x, y in coords]
 
 class GeometryEngine:
     """Mimics plugin map/geometry calculations in pure backend code."""
@@ -78,13 +98,15 @@ class GeometryEngine:
             if corridor.is_empty:
                 continue
             for obj in object_list:
-                area = corridor.intersection(obj.polygon).area
+                overlap_geometry = corridor.intersection(obj.polygon)
+                area = overlap_geometry.area
                 if area > 0:
                     overlaps.append(
                         CorridorOverlap(
                             segment_id=segment.segment_id,
                             feature_id=obj.feature_id,
                             overlap_area_m2=float(area),
+                            overlap_polygon=_extract_polygon_coords(overlap_geometry),
                         )
                     )
         return overlaps

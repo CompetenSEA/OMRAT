@@ -10,6 +10,7 @@ from typing import Protocol
 from shapely.geometry import LineString, Polygon
 
 from omrat_api.engine.geometry_engine import GeometryEngine
+from omrat_api.adapters.compute_wrapper import ComputeWrapper
 from omrat_api.services.legacy_project_compat import LegacyProjectCompatService
 
 
@@ -20,36 +21,6 @@ def _load_shadow_adjusted_holes():
         sys.path.insert(0, str(repo_root))
     from geometries.drift.probability_integration import compute_shadow_adjusted_holes
     return compute_shadow_adjusted_holes
-
-
-def _load_legacy_calculation():
-    """Load plugin-equivalent Calculation class from legacy compute package."""
-    repo_root = Path(__file__).resolve().parents[4]
-    if str(repo_root) not in sys.path:
-        sys.path.insert(0, str(repo_root))
-    from compute.run_calculations import Calculation
-    return Calculation
-
-
-class _NullLineEdit:
-    def setText(self, _value: str) -> None:  # pragma: no cover - simple UI stub
-        return None
-
-
-class _PluginParentStub:
-    """Minimal parent object required by legacy `Calculation` mixins."""
-
-    class _MainWidget:
-        LEPPoweredGrounding = _NullLineEdit()
-        LEPPoweredAllision = _NullLineEdit()
-        LEPHeadOnCollision = _NullLineEdit()
-        LEPOvertakingCollision = _NullLineEdit()
-        LEPCrossingCollision = _NullLineEdit()
-        LEPMergingCollision = _NullLineEdit()
-        LEPAAllision = _NullLineEdit()
-        LEPAGrounding = _NullLineEdit()
-
-    main_widget = _MainWidget()
 
 
 @dataclass(frozen=True)
@@ -186,28 +157,22 @@ class PluginEquivalentExecutionAdapter:
         report_path = payload.get("settings", {}).get("report_path") or f"/tmp/{run_id}.md"
         legacy_payload = LegacyProjectCompatService.to_legacy(payload)
 
-        Calculation = _load_legacy_calculation()
-        calc = Calculation(_PluginParentStub())
-
-        drifting_allision, drifting_grounding = calc.run_drifting_model(legacy_payload)
-        collision = calc.run_ship_collision_model(legacy_payload)
-        powered_grounding = calc.run_powered_grounding_model(legacy_payload)
-        powered_allision = calc.run_powered_allision_model(legacy_payload)
+        result = ComputeWrapper().execute_plugin_equivalent(legacy_payload)
 
         return RunArtifacts(
             run_id=run_id,
             report_path=report_path,
             powered_summary={
                 "engine": "plugin-equivalent",
-                "powered_grounding_prob": float(powered_grounding or 0.0),
-                "powered_allision_prob": float(powered_allision or 0.0),
-                "collision_total": float((collision or {}).get("total", 0.0)),
-                "collision_breakdown": collision or {},
+                "powered_grounding_prob": result.powered_grounding,
+                "powered_allision_prob": result.powered_allision,
+                "collision_total": float(result.collision.get("total", 0.0)),
+                "collision_breakdown": result.collision,
             },
             drifting_summary={
                 "engine": "plugin-equivalent",
-                "drifting_allision_prob": float(drifting_allision or 0.0),
-                "drifting_grounding_prob": float(drifting_grounding or 0.0),
-                "drifting_report": getattr(calc, "drifting_report", None) or {},
+                "drifting_allision_prob": result.drifting_allision,
+                "drifting_grounding_prob": result.drifting_grounding,
+                "drifting_report": result.drifting_report,
             },
         )

@@ -18,18 +18,18 @@ Legend: ✅ done · 🟡 partial · ❌ not started
 | Canonical payload normalization/validation | `omrat_utils/validate_data.py`, `gather_data.py` | `backend/omrat_api/contracts.py` | ✅ | Unified normalization path exists for load/import/AIS/analysis entry points. |
 | Clear vs merge import semantics | `omrat.py` load/import behavior | `ProjectIOService.import_into` + `import-project` action | ✅ | Strict merge parsing now enforced at web boundary. |
 | Route geometry drafting (bearing, leg labels, tangent) | `geometries/route.py`, `handle_qgis_iface.py` | `RouteEditingService` + `create-route-segment` | ✅ | Core leg generation parity exists. |
-| Layer synchronization lifecycle | plugin layer tables + QGIS layer operations | `MapLayerService` + `LayerStore` | 🟡 | Data-side sync present; no direct QGIS rendering surface in web target by design. |
+| Layer synchronization lifecycle | plugin layer tables + QGIS layer operations | `MapLayerService` + `LayerStore` | 🟡 | Added per-layer revision + row fingerprint lifecycle metadata; web render-surface projection contract now exposed through `sync-layers`; direct QGIS runtime is still not applicable in web target. |
 | Drift/powered/collision run orchestration | `compute/run_calculations.py` | `RunOrchestrationService` + execution adapter | ✅ | Plugin-equivalent adapter path added with auto fallback chain (`plugin-equivalent` → `shadow-cascade` → `simulation`) for production runtime resilience. |
 | OSM land/fixed-object integration | N/A (plugin uses depth/object layers) | `OSMSceneService` | ✅ | Context merged into objects; land crossings reported in run summary. |
 | Background task execution UX | QGIS task manager | `TaskManagerService` + queue worker + async dispatch | ✅ | Queue + retry + persistence available. |
 | Readiness diagnostics before run | Implicit user checks in GUI workflow docs | `assess-project-readiness` action | ✅ | New run-readiness endpoint returns blockers/warnings and counts. |
-| `.omrat` full import/export compatibility checks | plugin file I/O (`storage.py`) | web APIs/services | 🟡 | Golden suite now discovers all test `.omrat` fixtures and validates stricter per-field roundtrip parity; larger real-world corpus still needed. |
-| IWRAP XML import/export parity | `compute/iwrap_convertion.py` | web APIs/services | 🟡 | Added plugin-vs-web XML projection parity tests over all available `.omrat` fixtures; full schema golden corpus still pending. |
-| Drift corridor visual diagnostics parity | QGIS layer rendering | React map preview | 🟡 | Corridor/base-surface parity suite now validates refactored vs legacy geometry for fixed scenarios; UI rendering parity still pending. |
-| Frontend workflow tab parity | `omrat_base.ui`/widget tabs | `RiskWorkbench` reducer/components | 🟡 | Major flows are present; run tab now includes readiness gating; per-tab feature completeness still uneven. |
-| User-facing error taxonomy/messages consistency | plugin dialogs + log | web dispatch envelopes | 🟡 | Core taxonomy exists; some endpoint-specific messages still generic. |
+| `.omrat` full import/export compatibility checks | plugin file I/O (`storage.py`) | web APIs/services | 🟡 | Added additional corpus fixtures (`backend/tests/corpus/proj.omrat`, `backend/tests/corpus/proj_expanded_iwrap.omrat`, `backend/tests/corpus/test_res_iwrap.omrat`) plus optional external corpus ingestion via `OMRAT_EXTRA_CORPUS_DIR` and a parity-corpus status endpoint for operational visibility; broader real-world corpus growth is still needed. |
+| IWRAP XML import/export parity | `compute/iwrap_convertion.py` | web APIs/services | 🟡 | Added `proj`, `proj_expanded_iwrap`, and `test_res_iwrap` fixture+golden pairings plus corpus↔golden completeness checks, core riskmodel attributes, and extended schema-node assertions; broader full-schema corpus expansion is still pending. |
+| Drift corridor visual diagnostics parity | QGIS layer rendering | React map preview | 🟡 | Added frontend map-rendered overlap layer (from `preview-corridor-overlaps` polygons) plus Diagnostics tab; full drift corridor parity is narrowed to style/interaction deltas; core overlap geometry rendering now available. |
+| Frontend workflow tab parity | `omrat_base.ui`/widget tabs | `RiskWorkbench` reducer/components | 🟡 | Added dedicated Diagnostics tab and map overlap render controls; diagnostics now includes corpus parity status checks with schema-section counters; remaining gaps are minor UX/detail polish. |
+| User-facing error taxonomy/messages consistency | plugin dialogs + log | web dispatch envelopes | 🟡 | Expanded endpoint-specific validation envelopes for `sync-layers`, `start-analysis`, and `preview-corridor-overlaps`; structured missing-key details now returned; user-facing `user_message` templates plus frontend message-id catalog mapping and locale toggle (EN/GB and SE/SWE) are now included; remaining refinements are localization breadth polish. |
 | Last run summary projection for dashboard/history | QGIS task manager + result widgets | `list-runs` action + task manager summaries | ✅ | Recent completed runs now exposed with report/status/powered/drifting/osm summaries. |
-| Migration documentation and gap log | plugin docs | Django/React docs | 🟡 | Tracker + explicit field mapping table now added; deeper per-feature migration notes still needed. |
+| Migration documentation and gap log | plugin docs | Django/React docs | ✅ | Added migration delta + upgrade guide with known behavioral differences and rollout checklist. |
 
 ---
 
@@ -60,6 +60,27 @@ Legend: ✅ done · 🟡 partial · ❌ not started
 19. Completed endpoint-specific error code/message-id rollout for dispatcher error envelopes.
 20. Added plugin-equivalent compute adapter path in backend run orchestration with auto fallback chain for environments lacking full legacy runtime dependencies.
 21. Expanded `.omrat` fixture corpus with additional tracked scenario (`backend/tests/corpus/proj_expanded.omrat`) and corresponding persistent plugin-generated IWRAP golden.
+22. Isolated plugin-equivalent runtime behind a dedicated compute wrapper (`backend/omrat_api/adapters/compute_wrapper.py`) so `compute/*` calculations remain verbatim and upgradeable without adapter rewrites.
+23. Added migration delta + upgrade guidance document (`MIGRATION_DELTAS_AND_UPGRADE_GUIDE.md`) with known deltas and operational rollout checklist.
+24. Added layer synchronization lifecycle metadata (per-layer revision + row fingerprint + aggregate latest revision) to `sync-layers` responses.
+25. Expanded endpoint-specific validation errors for `sync-layers` and `start-analysis` with stable action-specific message IDs/codes.
+26. Added derived corpus fixture `backend/tests/corpus/proj.omrat` from plugin-generated IWRAP golden (`proj.plugin.xml`) to broaden `.omrat`/IWRAP parity coverage.
+27. Added a frontend Diagnostics tab to improve workflow-tab parity with layer sync lifecycle and corridor overlap diagnostics actions.
+28. Expanded endpoint-specific validation coverage to include `preview-corridor-overlaps`.
+29. Added map-rendered overlap polygons in React map preview using backend `preview-corridor-overlaps` geometry payloads.
+30. Expanded parity corpus again with `proj_expanded_iwrap.omrat` plus matching plugin golden XML fixture.
+31. Added CI parity-pack execution in `.github/workflows/python_app.yml` for legacy golden, IWRAP parity, and drift corridor parity suites.
+32. Added render-surface projection contract in `sync-layers` responses and frontend map overlap-layer rendering controls.
+33. Added Import/Export workflow tab for legacy JSON and IWRAP XML roundtrip actions.
+34. Expanded validation envelope details with `missing_keys` metadata for endpoint payload errors.
+35. Expanded parity corpus with `test_res_iwrap.omrat` plus matching plugin golden XML fixture and added corpus↔golden completeness assertions.
+36. Added standardized `user_message` templates in error envelopes to improve endpoint wording consistency for UI/localization flows.
+37. Added optional external corpus expansion hook (`OMRAT_EXTRA_CORPUS_DIR`) to parity test discovery for broader production fixture scale-out.
+38. Added frontend message-id error catalog mapping to support localization-ready error phrasing.
+39. Added `parity-corpus-status` action and Diagnostics UI integration for live fixture/golden coverage monitoring.
+40. Added frontend locale toggle (EN/GB and SE/SWE) and locale-aware error-catalog resolution for message-id based workbench errors.
+41. Expanded `parity-corpus-status` output with schema-section coverage counters and surfaced these in Diagnostics UI.
+42. Expanded locale-ready error catalog coverage to EN/GB and SE/SWE and wired locale selection in the global workbench header.
 
 ---
 
@@ -91,6 +112,6 @@ Legend: ✅ done · 🟡 partial · ❌ not started
 The refactor will be considered complete when:
 
 1. P0 issues are closed with automated tests.
-2. At least one plugin-vs-web parity test pack runs in CI for representative scenarios.
-3. Frontend enforces readiness checks before run dispatch.
-4. Migration docs include known deltas and upgrade guidance for legacy projects.
+2. ✅ At least one plugin-vs-web parity test pack runs in CI for representative scenarios.
+3. ✅ Frontend enforces readiness checks before run dispatch.
+4. ✅ Migration docs include known deltas and upgrade guidance for legacy projects.

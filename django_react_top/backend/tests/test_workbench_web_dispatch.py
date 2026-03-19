@@ -34,6 +34,7 @@ def test_dispatch_unknown_action_returns_not_found():
     assert response["error"]["code"] == "workbench.action.not_found"
     assert response["error"]["message_id"] == "WB_ACTION_NOT_FOUND"
     assert response["error"]["action"] == "nope"
+    assert response["error"]["user_message"] == "Requested workbench action was not found."
 
 
 def test_dispatch_validates_required_keys():
@@ -43,6 +44,33 @@ def test_dispatch_validates_required_keys():
     assert response["error"]["code"] == "workbench.create_route_segment.validation_error"
     assert response["error"]["message_id"] == "WB_CREATE_ROUTE_SEGMENT_VALIDATION_ERROR"
     assert response["error"]["action"] == "create-route-segment"
+    assert response["error"]["user_message"] == "Some required inputs are missing or invalid."
+
+
+def test_dispatch_sync_layers_has_endpoint_specific_validation_error():
+    response = dispatch_workbench_action("sync-layers", {"segment_data": []})
+    assert response["ok"] is False
+    assert response["error"]["type"] == "validation_error"
+    assert response["error"]["code"] == "workbench.sync_layers.validation_error"
+    assert response["error"]["message_id"] == "WB_SYNC_LAYERS_VALIDATION_ERROR"
+    assert sorted(response["error"]["details"]["missing_keys"]) == ["depths", "objects"]
+
+
+def test_dispatch_start_analysis_has_endpoint_specific_validation_error():
+    response = dispatch_workbench_action("start-analysis", {"segment_data": []})
+    assert response["ok"] is False
+    assert response["error"]["type"] == "validation_error"
+    assert response["error"]["code"] == "workbench.start_analysis.validation_error"
+    assert response["error"]["message_id"] == "WB_START_ANALYSIS_VALIDATION_ERROR"
+
+
+def test_dispatch_preview_overlaps_has_endpoint_specific_validation_error():
+    response = dispatch_workbench_action("preview-corridor-overlaps", {"segment_data": []})
+    assert response["ok"] is False
+    assert response["error"]["type"] == "validation_error"
+    assert response["error"]["code"] == "workbench.preview_corridor_overlaps.validation_error"
+    assert response["error"]["message_id"] == "WB_PREVIEW_CORRIDOR_OVERLAPS_VALIDATION_ERROR"
+    assert sorted(response["error"]["details"]["missing_keys"]) == ["objects"]
 
 
 def test_dispatch_route_build_and_run_lifecycle():
@@ -248,7 +276,7 @@ def test_dispatch_enforces_auth_and_project_scope(monkeypatch):
 
     unauthorized = dispatch_workbench_action(
         "sync-layers",
-        {"segment_data": [], "settings": {"project_id": "alpha"}},
+        {"segment_data": [], "depths": [], "objects": [], "settings": {"project_id": "alpha"}},
         auth_token="wrong-token",
     )
     assert unauthorized["ok"] is False
@@ -257,7 +285,7 @@ def test_dispatch_enforces_auth_and_project_scope(monkeypatch):
 
     forbidden_project = dispatch_workbench_action(
         "sync-layers",
-        {"segment_data": [], "settings": {"project_id": "gamma"}},
+        {"segment_data": [], "depths": [], "objects": [], "settings": {"project_id": "gamma"}},
         auth_token="expected-token",
     )
     assert forbidden_project["ok"] is False
@@ -265,7 +293,7 @@ def test_dispatch_enforces_auth_and_project_scope(monkeypatch):
 
     allowed = dispatch_workbench_action(
         "sync-layers",
-        {"segment_data": [], "settings": {"project_id": "alpha"}},
+        {"segment_data": [], "depths": [], "objects": [], "settings": {"project_id": "alpha"}},
         auth_token="expected-token",
     )
     assert allowed["ok"] is True
@@ -276,7 +304,7 @@ def test_dispatch_writes_audit_log(monkeypatch, tmp_path):
     monkeypatch.setenv("OMRAT_AUDIT_LOG_PATH", str(tmp_path / "audit.log"))
     response = dispatch_workbench_action(
         "sync-layers",
-        {"segment_data": [], "settings": {"project_id": "alpha"}},
+        {"segment_data": [], "depths": [], "objects": [], "settings": {"project_id": "alpha"}},
         auth_token="admin-token",
     )
     assert response["ok"] is True
@@ -300,3 +328,11 @@ def test_process_queue_requires_admin_role(monkeypatch):
 
     allowed = dispatch_workbench_action("process-queue", {}, auth_token="admin-token")
     assert allowed["ok"] is True
+
+
+def test_dispatch_parity_corpus_status_action():
+    response = dispatch_workbench_action("parity-corpus-status", {})
+    assert response["ok"] is True
+    assert response["data"]["fixture_count"] >= 1
+    assert response["data"]["missing_golden_count"] >= 0
+    assert response["data"]["schema_sections"]["segment_data"] >= 1

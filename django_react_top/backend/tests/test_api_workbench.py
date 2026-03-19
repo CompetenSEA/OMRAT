@@ -74,15 +74,27 @@ def test_ingest_ais_returns_rows_written():
 def test_sync_layers_returns_counts():
     result = sync_layers(
         {
-            "segment_data": [{"segment_id": "S1"}],
-            "depths": [{"feature_id": "D1"}, {"feature_id": "D2"}],
-            "objects": [{"feature_id": "O1"}],
+            "segment_data": [{"segment_id": "S1", "coords": [(0, 0), (1, 0)]}],
+            "depths": [{"feature_id": "D1", "coords": [(0, 0), (1, 0), (1, 1)]}, {"feature_id": "D2"}],
+            "objects": [{"feature_id": "O1", "coords": [(0, 0), (1, 0), (1, 1)]}],
         }
     )
 
     assert result["routes"]["rows"] == 1
     assert result["depths"]["rows"] == 2
     assert result["objects"]["rows"] == 1
+    assert result["routes"]["revision"] >= 1
+    assert result["depths"]["revision"] >= 1
+    assert result["objects"]["revision"] >= 1
+    assert len(result["routes"]["row_fingerprint"]) == 16
+    assert result["lifecycle"]["latest_revision"] == max(
+        result["routes"]["revision"],
+        result["depths"]["revision"],
+        result["objects"]["revision"],
+    )
+    assert result["render_surface"]["routes"][0]["segment_id"] == "S1"
+    assert result["render_surface"]["depths"][0]["feature_id"] == "D1"
+    assert result["render_surface"]["objects"][0]["feature_id"] == "O1"
 
 
 def test_preview_corridor_overlaps_returns_hits():
@@ -107,6 +119,7 @@ def test_preview_corridor_overlaps_returns_hits():
 
     assert preview["count"] == 1
     assert preview["overlaps"][0]["segment_id"] == "S1"
+    assert len(preview["overlaps"][0]["overlap_polygon"]) >= 4
 
 
 def test_osm_scene_and_land_crossings():
