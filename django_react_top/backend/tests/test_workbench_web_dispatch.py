@@ -1,3 +1,5 @@
+import json
+
 from omrat_api.web.workbench_views import dispatch_workbench_action
 
 
@@ -29,12 +31,18 @@ def test_dispatch_unknown_action_returns_not_found():
     response = dispatch_workbench_action("nope", {})
     assert response["ok"] is False
     assert response["error"]["type"] == "not_found"
+    assert response["error"]["code"] == "workbench.action.not_found"
+    assert response["error"]["message_id"] == "WB_ACTION_NOT_FOUND"
+    assert response["error"]["action"] == "nope"
 
 
 def test_dispatch_validates_required_keys():
     response = dispatch_workbench_action("create-route-segment", {})
     assert response["ok"] is False
     assert response["error"]["type"] == "validation_error"
+    assert response["error"]["code"] == "workbench.create_route_segment.validation_error"
+    assert response["error"]["message_id"] == "WB_CREATE_ROUTE_SEGMENT_VALIDATION_ERROR"
+    assert response["error"]["action"] == "create-route-segment"
 
 
 def test_dispatch_route_build_and_run_lifecycle():
@@ -77,6 +85,11 @@ def test_dispatch_execute_run_async_action():
     listed = dispatch_workbench_action("list-runs", {"limit": 5})
     assert listed["ok"] is True
     assert isinstance(listed["data"]["runs"], list)
+
+    metrics = dispatch_workbench_action("queue-metrics", {"limit": 50})
+    assert metrics["ok"] is True
+    assert metrics["data"]["window_size"] >= 1
+    assert "completed_per_hour" in metrics["data"]
 
     invalid_limit = dispatch_workbench_action("list-runs", {"limit": 0})
     assert invalid_limit["ok"] is False
@@ -240,6 +253,7 @@ def test_dispatch_enforces_auth_and_project_scope(monkeypatch):
     )
     assert unauthorized["ok"] is False
     assert unauthorized["error"]["type"] == "unauthorized"
+    assert unauthorized["error"]["code"] == "workbench.sync_layers.unauthorized"
 
     forbidden_project = dispatch_workbench_action(
         "sync-layers",
@@ -266,7 +280,13 @@ def test_dispatch_writes_audit_log(monkeypatch, tmp_path):
         auth_token="admin-token",
     )
     assert response["ok"] is True
-    assert (tmp_path / "audit.log").exists()
+    log_path = tmp_path / "audit.log"
+    assert log_path.exists()
+    lines = log_path.read_text(encoding="utf-8").strip().splitlines()
+    event = json.loads(lines[-1])
+    assert isinstance(event.get("request_fingerprint"), str) and len(event["request_fingerprint"]) >= 12
+    assert isinstance(event.get("payload_bytes"), int)
+    assert event.get("latency_ms") is not None
 
 
 def test_process_queue_requires_admin_role(monkeypatch):

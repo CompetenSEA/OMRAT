@@ -1,0 +1,126 @@
+<?xml version="1.0" ?>
+<riskmodel name="OMRAT Project" guid="8365E23D-8761-4BD1-8CD6-C67E5AEFAE3C" fv="2" major="1" minor="0" seasons="0" current_season="-1" data_job_id="" denc_used="" data_country="" data_start="" data_end="" ship_type_version="1.0" trafficAdjustmentFactor="1" grounding_safety_margin="0" grounding_safety_margin_by_type="false" calc_squat="false" min_squat_area_size_ship_size_ratio="100" timezone="(GMT+01:00) Amsterdam, Berlin, Bern" default_max_leg_width="5000" org_model_dir="" data_work_base_dir="" data_set_dir="" data_import_dir="" density_output_dir="" speed_density_output_dir="" heatmap_output_dir="" passageline_output_dir="" simulator_config_dir="" simulator_output_dir="" shared_bathymetry_file="" shared_structure_file="" default_max_leg_extension_length="49000" use_leg_interaction="true" use_32bit_compatability_mode="1" default_max_leg_interaction_angle="3" use_avoid_own_ship_algo="false" use_fixed_draught="false" use_built_in_shiptypes="true" use_class_b="true" use_check_for_legs_on_straight_line_algo="false" use_anchor_check="true" use_spatial_index="true" grounding_accuracy="10" use_width_from_data="false" ship_type_def_file="" ship_type_def_file_base="" ship_type_signature="" ship_type_def_dont_care="" shared_area_store_file="" height_mode="0" height_scale_factor="1" height_test="0" fixed_to_year_factor="0" use_fixed_to_year_factor="false" misc="B|calc_allision|1@B|calc_area|1@B|calc_collisions|1@B|calc_crossing|1@B|calc_drifting_allision|1@B|calc_drifting_grounding|1@B|calc_grounding|1@B|calc_headon_overtaking|1@B|calc_powered_allision|1@B|calc_powered_grounding|1" default_class_a_length="50" default_class_b_length="25" default_class_a_type="Other ship" default_class_b_type="Other ship">
+  <ship_type_data/>
+  <passagelines/>
+  <traffic_distributions>
+    <traffic_distribution adjustment_factor="1" dont_use="false" guid="{4F078CFD-00FF-4A7B-976E-0AB62D1853FA}" name="TD_1_FTL" only_uniform="false" season="-1">
+      <shiptypes>
+        <shiptype causation_reduction_factor="0" freq_adjustment="1" grounding_safety_margin="-1" name="General cargo ship">
+          <categories/>
+        </shiptype>
+      </shiptypes>
+    </traffic_distribution>
+    <traffic_distribution adjustment_factor="1" dont_use="false" guid="{45FC4C7B-6B5A-40C2-B33F-2849A8729576}" name="TD_1_LTF" only_uniform="false" season="-1">
+      <shiptypes>
+        <shiptype causation_reduction_factor="0" freq_adjustment="1" grounding_safety_margin="-1" name="General cargo ship">
+          <categories/>
+        </shiptype>
+      </shiptypes>
+    </traffic_distribution>
+    <traffic_distribution adjustment_factor="1" dont_use="false" guid="{60105A37-9DE8-46FD-BC2C-7EF16564F901}" name="TD_2_FTL" only_uniform="false" season="-1">
+      <shiptypes>
+        <shiptype causation_reduction_factor="0" freq_adjustment="1" grounding_safety_margin="-1" name="General cargo ship">
+          <categories/>
+        </shiptype>
+      </shiptypes>
+    </traffic_distribution>
+    <traffic_distribution adjustment_factor="1" dont_use="false" guid="{8F3B5B14-08BE-4AA2-AC5E-DA9F42A1114E}" name="TD_2_LTF" only_uniform="false" season="-1">
+      <shiptypes>
+        <shiptype causation_reduction_factor="0" freq_adjustment="1" grounding_safety_margin="-1" name="General cargo ship">
+          <categories/>
+        </shiptype>
+      </shiptypes>
+    </traffic_distribution>
+    <traffic_distribution adjustment_factor="1" dont_use="false" guid="{D28B85F4-6CAB-49ED-A5F9-5C340C150FBF}" name="TD_3_FTL" only_uniform="false" season="-1">
+      <shiptypes>
+        <shiptype causation_reduction_factor="0" freq_adjustment="1" grounding_safety_margin="-1" name="General cargo ship">
+          <categories/>
+        </shiptype>
+      </shiptypes>
+    </traffic_distribution>
+    <traffic_distribution adjustment_factor="1" dont_use="false" guid="{9DD63F20-CAC2-4ADD-9378-75058865DB40}" name="TD_3_LTF" only_uniform="false" season="-1">
+      <shiptypes>
+        <shiptype causation_reduction_factor="0" freq_adjustment="1" grounding_safety_margin="-1" name="General cargo ship">
+          <categories/>
+        </shiptype>
+      </shiptypes>
+    </traffic_distribution>
+  </traffic_distributions>
+  <waypoints>
+    <waypoint guid="DB5FD3B9-EB3C-4C2B-A147-DFD0927DE7C2" name="WP_1_Start_Point" latitude="55.19699" longitude="14.31834" bend_causation_rf="1" crossing_causation_rf="1">
+      <leg_leg_distributions>
+        <leg_leg_distribution guid="0D87F4DD-5132-4EFE-9494-CEE02BE26BB8" from_leg_uid="E83F66C2-C66D-48E8-897F-3EF37D05652C" to_leg_uid="E83F66C2-C66D-48E8-897F-3EF37D05652C" method="AUTOMATIC" name="WTD_1" season="-1" fraction="1"/>
+      </leg_leg_distributions>
+    </waypoint>
+    <waypoint guid="9332D58A-71FA-470D-9570-5889A583B929" name="WP_1_End_Point" latitude="55.41675" longitude="14.61497" bend_causation_rf="1" crossing_causation_rf="1">
+      <leg_leg_distributions/>
+    </waypoint>
+    <waypoint guid="AA03357D-4DA8-416A-A2D4-949390DFE866" name="WP_2_Start_Point" latitude="55.20266" longitude="13.79801" bend_causation_rf="1" crossing_causation_rf="1">
+      <leg_leg_distributions>
+        <leg_leg_distribution guid="C704160B-1FC1-481E-BD7D-455CF02CCAA4" from_leg_uid="DFC9DCA9-CB5E-4454-9874-E20F9D12B3F8" to_leg_uid="DFC9DCA9-CB5E-4454-9874-E20F9D12B3F8" method="AUTOMATIC" name="WTD_2" season="-1" fraction="1"/>
+      </leg_leg_distributions>
+    </waypoint>
+    <waypoint guid="99B35BBE-A1FF-4A46-A8B1-F14E24BBDFEB" name="WP_2_End_Point" latitude="55.1951" longitude="14.31669" bend_causation_rf="1" crossing_causation_rf="1">
+      <leg_leg_distributions/>
+    </waypoint>
+    <waypoint guid="A08891F9-E142-4B58-9563-B2BACA4F02D8" name="WP_3_Start_Point" latitude="55.04537" longitude="14.11286" bend_causation_rf="1" crossing_causation_rf="1">
+      <leg_leg_distributions>
+        <leg_leg_distribution guid="7ADA5159-796B-4498-ADDC-B02CC0C37925" from_leg_uid="FACACD09-7DC4-49B3-AB4A-D6AAED0BED0E" to_leg_uid="FACACD09-7DC4-49B3-AB4A-D6AAED0BED0E" method="AUTOMATIC" name="WTD_3" season="-1" fraction="1"/>
+      </leg_leg_distributions>
+    </waypoint>
+    <waypoint guid="5B4BD9DE-B017-458F-A92C-ED925DF11C59" name="WP_3_End_Point" latitude="55.19415" longitude="14.31834" bend_causation_rf="1" crossing_causation_rf="1">
+      <leg_leg_distributions/>
+    </waypoint>
+  </waypoints>
+  <manoeuvring_aspects_legs>
+    <manoeuvring_aspects_leg guid="{C4E076A0-F21D-4A56-9FFE-8575A19549CF}" name="LEG_1" allision_causation_rf="1" allision_drifting_rf="1" allision_no_turn_rf="1" aton_reduction_factor="1" grounding_causation_rf="1" grounding_check_time="0" grounding_drifting_rf="1" grounding_no_turn_rf="1" headon_causation_rf="1" limit_width="false" overtaking_causation_rf="1">
+      <mixed_dist scale="1"/>
+    </manoeuvring_aspects_leg>
+    <manoeuvring_aspects_leg guid="{BE7B1E6F-C0D0-4CEC-BDBF-4FCFD61B54AC}" name="LEG_1" allision_causation_rf="1" allision_drifting_rf="1" allision_no_turn_rf="1" aton_reduction_factor="1" grounding_causation_rf="1" grounding_check_time="0" grounding_drifting_rf="1" grounding_no_turn_rf="1" headon_causation_rf="1" limit_width="false" overtaking_causation_rf="1">
+      <mixed_dist scale="1"/>
+    </manoeuvring_aspects_leg>
+    <manoeuvring_aspects_leg guid="{2F2F1322-3B4B-4CC3-B8C2-E476F185A693}" name="LEG_2" allision_causation_rf="1" allision_drifting_rf="1" allision_no_turn_rf="1" aton_reduction_factor="1" grounding_causation_rf="1" grounding_check_time="0" grounding_drifting_rf="1" grounding_no_turn_rf="1" headon_causation_rf="1" limit_width="false" overtaking_causation_rf="1">
+      <mixed_dist scale="1"/>
+    </manoeuvring_aspects_leg>
+    <manoeuvring_aspects_leg guid="{77AC098C-09F4-469B-9A5E-06C66974F598}" name="LEG_2" allision_causation_rf="1" allision_drifting_rf="1" allision_no_turn_rf="1" aton_reduction_factor="1" grounding_causation_rf="1" grounding_check_time="0" grounding_drifting_rf="1" grounding_no_turn_rf="1" headon_causation_rf="1" limit_width="false" overtaking_causation_rf="1">
+      <mixed_dist scale="1"/>
+    </manoeuvring_aspects_leg>
+    <manoeuvring_aspects_leg guid="{36D04311-8D90-478F-8923-FF9978FE43D9}" name="LEG_3" allision_causation_rf="1" allision_drifting_rf="1" allision_no_turn_rf="1" aton_reduction_factor="1" grounding_causation_rf="1" grounding_check_time="0" grounding_drifting_rf="1" grounding_no_turn_rf="1" headon_causation_rf="1" limit_width="false" overtaking_causation_rf="1">
+      <mixed_dist scale="1"/>
+    </manoeuvring_aspects_leg>
+    <manoeuvring_aspects_leg guid="{CEF11209-A84F-41DF-A446-EF69F4954657}" name="LEG_3" allision_causation_rf="1" allision_drifting_rf="1" allision_no_turn_rf="1" aton_reduction_factor="1" grounding_causation_rf="1" grounding_check_time="0" grounding_drifting_rf="1" grounding_no_turn_rf="1" headon_causation_rf="1" limit_width="false" overtaking_causation_rf="1">
+      <mixed_dist scale="1"/>
+    </manoeuvring_aspects_leg>
+  </manoeuvring_aspects_legs>
+  <legs>
+    <leg guid="E83F66C2-C66D-48E8-897F-3EF37D05652C" name="LEG_1" max_width="5000.0" max_width_powered="5000.0" max_extension_first="50000" max_extension_last="50000" first_waypoint_guid="DB5FD3B9-EB3C-4C2B-A147-DFD0927DE7C2" last_waypoint_guid="9332D58A-71FA-470D-9570-5889A583B929" traffic_distribution_first_to_last_guid="{4F078CFD-00FF-4A7B-976E-0AB62D1853FA}" traffic_distribution_last_to_first_guid="{45FC4C7B-6B5A-40C2-B33F-2849A8729576}" man_aspects_first_to_last_guid="{C4E076A0-F21D-4A56-9FFE-8575A19549CF}" man_aspects_last_to_first_guid="{BE7B1E6F-C0D0-4CEC-BDBF-4FCFD61B54AC}">
+      <tags/>
+    </leg>
+    <leg guid="DFC9DCA9-CB5E-4454-9874-E20F9D12B3F8" name="LEG_2" max_width="5000.0" max_width_powered="5000.0" max_extension_first="50000" max_extension_last="50000" first_waypoint_guid="AA03357D-4DA8-416A-A2D4-949390DFE866" last_waypoint_guid="99B35BBE-A1FF-4A46-A8B1-F14E24BBDFEB" traffic_distribution_first_to_last_guid="{60105A37-9DE8-46FD-BC2C-7EF16564F901}" traffic_distribution_last_to_first_guid="{8F3B5B14-08BE-4AA2-AC5E-DA9F42A1114E}" man_aspects_first_to_last_guid="{2F2F1322-3B4B-4CC3-B8C2-E476F185A693}" man_aspects_last_to_first_guid="{77AC098C-09F4-469B-9A5E-06C66974F598}">
+      <tags/>
+    </leg>
+    <leg guid="FACACD09-7DC4-49B3-AB4A-D6AAED0BED0E" name="LEG_3" max_width="5000.0" max_width_powered="5000.0" max_extension_first="50000" max_extension_last="50000" first_waypoint_guid="A08891F9-E142-4B58-9563-B2BACA4F02D8" last_waypoint_guid="5B4BD9DE-B017-458F-A92C-ED925DF11C59" traffic_distribution_first_to_last_guid="{D28B85F4-6CAB-49ED-A5F9-5C340C150FBF}" traffic_distribution_last_to_first_guid="{9DD63F20-CAC2-4ADD-9378-75058865DB40}" man_aspects_first_to_last_guid="{36D04311-8D90-478F-8923-FF9978FE43D9}" man_aspects_last_to_first_guid="{CEF11209-A84F-41DF-A446-EF69F4954657}">
+      <tags/>
+    </leg>
+  </legs>
+  <areas>
+    <area_polygon area_style_id="" causationReductionFactor="1" depth="8.0" guid="96FE52B8-71D8-47C9-916F-7BE24C829A61" is_line="false" is_right="false" filename="depth" name="depth_1" structure_type="" style_mode="0" type="0">
+      <polygon/>
+    </area_polygon>
+    <area_polygon area_style_id="" causationReductionFactor="1" depth="-1" guid="3DE973B6-25D9-4DA3-BEFD-A1854870D49F" is_line="false" is_right="false" filename="object" name="object_1" structure_type="Other" style_mode="1" type="1">
+      <polygon/>
+    </area_polygon>
+  </areas>
+  <traffic_areas/>
+  <drifting anchor_probability="1.0" max_anchor_depth="7.0" drift_speed="1.0" blackout_other="1.0">
+    <repair_time/>
+    <drift_directions angle_0="0.125" angle_45="0.125" angle_90="0.125" angle_135="0.125" angle_180="0.125" angle_225="0.125" angle_270="0.125" angle_315="0.125"/>
+  </drifting>
+  <area_traffic/>
+  <routes/>
+  <tug_boats/>
+  <global_settings>
+    <causation_factors p_allision_causation="0.000155" p_allision_drifting_causation="1" p_allision_no_turn_causation="0.000155" p_bend_causation="0.00013" p_crossing_causation="0.00013" p_grounding_causation="0.000155" p_grounding_drifting_causation="1" p_grounding_no_turn_causation="0.000155" p_headon_causation="5e-05" p_merging_causation="0.00013" p_overtaking_causation="0.00011"/>
+    <misc fastferry_reduction_factor="20" meantime_between_checks="240" passengership_reductionfactor="20"/>
+  </global_settings>
+</riskmodel>

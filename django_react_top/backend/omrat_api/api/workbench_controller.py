@@ -139,3 +139,6 @@ class WorkbenchController:
             if len(runs) >= limit:
                 break
         return {"runs": runs}
+
+    def characterize_queue(self, *, limit: int = 200) -> dict[str, Any]:
+        return _TASK_MANAGER.characterize_throughput(limit=limit)

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+from hashlib import sha256
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -30,6 +31,8 @@ _ACTION_ROLES = {
     "execute-run": {"analyst", "admin"},
     "execute-run-async": {"analyst", "admin"},
     "get-task": {"viewer", "analyst", "admin"},
+    "list-runs": {"viewer", "analyst", "admin"},
+    "queue-metrics": {"viewer", "analyst", "admin"},
     "start-analysis": {"analyst", "admin"},
     "process-queue": {"admin"},
 }
@@ -84,7 +87,15 @@ def authorize(action: str, payload: dict[str, Any], auth_token: str | None) -> A
     return AuthDecision(allowed=True, role=role, reason="Authorized")
 
 
-def audit_log(*, action: str, payload: dict[str, Any], decision: AuthDecision, outcome: str) -> None:
+def audit_log(
+    *,
+    action: str,
+    payload: dict[str, Any],
+    decision: AuthDecision,
+    outcome: str,
+    request_fingerprint: str | None = None,
+    latency_ms: float | None = None,
+) -> None:
     path = Path(os.getenv("OMRAT_AUDIT_LOG_PATH", "/tmp/omrat_audit.log"))
     path.parent.mkdir(parents=True, exist_ok=True)
     event = {
@@ -95,7 +106,16 @@ def audit_log(*, action: str, payload: dict[str, Any], decision: AuthDecision, o
         "allowed": decision.allowed,
         "reason": decision.reason,
         "outcome": outcome,
+        "request_fingerprint": request_fingerprint or build_request_fingerprint(action, payload),
+        "latency_ms": round(float(latency_ms), 3) if latency_ms is not None else None,
+        "payload_bytes": len(json.dumps(payload or {}, default=str).encode("utf-8")),
     }
     with path.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(event) + "\n")
 
+
+def build_request_fingerprint(action: str, payload: dict[str, Any]) -> str:
+    """Build deterministic short fingerprint for request correlation and diagnostics."""
+    canonical = json.dumps(payload or {}, sort_keys=True, separators=(",", ":"), default=str)
+    raw = f"{action}|{canonical}".encode("utf-8")
+    return sha256(raw).hexdigest()[:20]

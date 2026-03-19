@@ -62,6 +62,15 @@ class TaskManagerService:
     def _now() -> str:
         return datetime.now(tz=timezone.utc).isoformat()
 
+    @staticmethod
+    def _parse_iso(raw: str | None) -> datetime | None:
+        if not raw:
+            return None
+        try:
+            return datetime.fromisoformat(raw)
+        except Exception:
+            return None
+
     def _initialize_sqlite(self) -> None:
         db_parent = Path(self._db_path).expanduser().resolve().parent
         db_parent.mkdir(parents=True, exist_ok=True)
@@ -500,3 +509,61 @@ class TaskManagerService:
             in_memory = [task for task in in_memory if task.state == state]
         in_memory.sort(key=lambda item: item.updated_at, reverse=True)
         return in_memory[:limit]
+
+    def characterize_throughput(self, *, limit: int = 200) -> dict[str, Any]:
+        """Return queue throughput and latency characterization over recent tasks."""
+        tasks = self.list_tasks(limit=max(1, int(limit)))
+        if not tasks:
+            return {
+                "window_size": 0,
+                "state_counts": {},
+                "completed_per_hour": 0.0,
+                "avg_queue_wait_s": 0.0,
+                "p95_queue_wait_s": 0.0,
+                "avg_run_duration_s": 0.0,
+                "p95_run_duration_s": 0.0,
+            }
+
+        state_counts: dict[str, int] = {}
+        queue_waits: list[float] = []
+        run_durations: list[float] = []
+        completed_created_times: list[datetime] = []
+
+        for task in tasks:
+            state_counts[task.state] = state_counts.get(task.state, 0) + 1
+            created = self._parse_iso(task.created_at)
+            updated = self._parse_iso(task.updated_at)
+            if created and updated and updated >= created:
+                elapsed = (updated - created).total_seconds()
+                if task.state in {"completed", "failed"}:
+                    run_durations.append(elapsed)
+                if task.state in {"running", "completed", "failed"}:
+                    queue_waits.append(elapsed)
+            if task.state == "completed" and created:
+                completed_created_times.append(created)
+
+        completed_per_hour = 0.0
+        if len(completed_created_times) >= 2:
+            span_s = (max(completed_created_times) - min(completed_created_times)).total_seconds()
+            if span_s > 0:
+                completed_per_hour = (len(completed_created_times) / span_s) * 3600.0
+
+        def _avg(values: list[float]) -> float:
+            return sum(values) / len(values) if values else 0.0
+
+        def _p95(values: list[float]) -> float:
+            if not values:
+                return 0.0
+            ordered = sorted(values)
+            idx = max(0, min(len(ordered) - 1, int(round(0.95 * (len(ordered) - 1)))))
+            return ordered[idx]
+
+        return {
+            "window_size": len(tasks),
+            "state_counts": state_counts,
+            "completed_per_hour": round(completed_per_hour, 3),
+            "avg_queue_wait_s": round(_avg(queue_waits), 3),
+            "p95_queue_wait_s": round(_p95(queue_waits), 3),
+            "avg_run_duration_s": round(_avg(run_durations), 3),
+            "p95_run_duration_s": round(_p95(run_durations), 3),
+        }
