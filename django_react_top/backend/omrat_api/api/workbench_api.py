@@ -5,10 +5,7 @@ These functions are framework-agnostic to keep business logic testable.
 
 from __future__ import annotations
 
-import json
-import os
 from dataclasses import asdict
-from pathlib import Path
 from typing import Any, Dict, Mapping
 
 from omrat_api.engine.geometry_engine import GeometryEngine
@@ -22,6 +19,7 @@ from omrat_api.services.project_io import ProjectIOService
 from omrat_api.services.readiness_service import ProjectReadinessService
 from omrat_api.services.route_editing_service import RouteEditingService
 from omrat_api.services.run_orchestration import RunOrchestrationService
+from omrat_api.services.parity_corpus import parity_corpus_status as _parity_corpus_status
 
 _LAYER_STORE = LayerStore()
 _LAYER_SERVICE = MapLayerService(store=_LAYER_STORE)
@@ -160,55 +158,4 @@ def import_iwrap_xml(xml_payload: str) -> Dict[str, Any]:
 
 
 def parity_corpus_status() -> Dict[str, Any]:
-    repo_root = Path(__file__).resolve().parents[4]
-    roots = [repo_root / "tests", repo_root / "django_react_top" / "backend" / "tests" / "corpus"]
-    extra_root = os.getenv("OMRAT_EXTRA_CORPUS_DIR", "").strip()
-    if extra_root:
-        roots.append(Path(extra_root))
-
-    fixtures: list[Path] = []
-    for root in roots:
-        if root.exists():
-            fixtures.extend(sorted(root.rglob("*.omrat")))
-
-    golden_root = repo_root / "django_react_top" / "backend" / "tests" / "golden" / "iwrap"
-    missing_golden = []
-    schema_sections = {
-        "segment_data": 0,
-        "traffic_data": 0,
-        "depths": 0,
-        "objects": 0,
-        "drift": 0,
-        "routes_like": 0,
-    }
-
-    for fixture in fixtures:
-        expected = golden_root / f"{fixture.stem}.plugin.xml"
-        if not expected.exists():
-            missing_golden.append({"fixture": str(fixture), "missing_golden": str(expected)})
-
-        try:
-            payload = json.loads(fixture.read_text(encoding="utf-8"))
-        except Exception:
-            continue
-
-        if payload.get("segment_data"):
-            schema_sections["segment_data"] += 1
-        if payload.get("traffic_data"):
-            schema_sections["traffic_data"] += 1
-        if payload.get("depths"):
-            schema_sections["depths"] += 1
-        if payload.get("objects"):
-            schema_sections["objects"] += 1
-        if payload.get("drift"):
-            schema_sections["drift"] += 1
-        if payload.get("routes") or payload.get("legs"):
-            schema_sections["routes_like"] += 1
-
-    return {
-        "fixture_count": len(fixtures),
-        "missing_golden_count": len(missing_golden),
-        "missing_golden": missing_golden,
-        "roots": [str(root) for root in roots],
-        "schema_sections": schema_sections,
-    }
+    return _parity_corpus_status()
