@@ -74,6 +74,7 @@ Implemented frontend workflow modules:
 - ORM domain models now cover project, run, report artifact, API token, and audit event entities in addition to tasks/AIS.
 - Authorization now supports role/action policies via token registry and writes structured audit logs for every dispatch outcome.
 - Golden compatibility tests now include a seed plugin fixture (`tests/test_res.omrat`) for `.omrat` and IWRAP roundtrip sanity checks.
+- Fixture/golden corpus source-of-truth and maintenance flow is documented in `django_react_top/PARITY_CORPUS.md`.
 
 ## Refactor backlog tracker
 

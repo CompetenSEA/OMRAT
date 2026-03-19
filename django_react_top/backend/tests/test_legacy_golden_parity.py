@@ -1,7 +1,3 @@
-import json
-import os
-from pathlib import Path
-
 import pytest
 
 from omrat_api.api.workbench_api import (
@@ -10,35 +6,12 @@ from omrat_api.api.workbench_api import (
     import_iwrap_xml,
     import_legacy_project,
 )
+from omrat_api.services.parity_corpus import fixture_paths, read_fixture
 
 
-def _legacy_fixture(path: str) -> dict:
-    repo_root = Path(__file__).resolve().parents[3]
-    fixture_path = Path(path)
-    if not fixture_path.is_absolute():
-        fixture_path = repo_root / path
-    return json.loads(fixture_path.read_text(encoding="utf-8"))
-
-
-def _legacy_fixture_paths() -> list[str]:
-    repo_root = Path(__file__).resolve().parents[3]
-    roots = [repo_root / "tests", repo_root / "django_react_top" / "backend" / "tests" / "corpus"]
-    extra_root = os.getenv("OMRAT_EXTRA_CORPUS_DIR", "").strip()
-    if extra_root:
-        roots.append(Path(extra_root))
-    paths = []
-    for root in roots:
-        for fixture in root.rglob("*.omrat"):
-            try:
-                paths.append(fixture.relative_to(repo_root).as_posix())
-            except ValueError:
-                paths.append(str(fixture.resolve()))
-    return sorted(paths)
-
-
-@pytest.mark.parametrize("fixture_path", _legacy_fixture_paths())
+@pytest.mark.parametrize("fixture_path", fixture_paths())
 def test_golden_legacy_fixture_imports_to_canonical_shape(fixture_path: str):
-    fixture = _legacy_fixture(fixture_path)
+    fixture = read_fixture(fixture_path)
     canonical = import_legacy_project(fixture)
 
     assert len(canonical["segment_data"]) >= 1
@@ -49,9 +22,9 @@ def test_golden_legacy_fixture_imports_to_canonical_shape(fixture_path: str):
     assert canonical["settings"]["model_name"] != ""
 
 
-@pytest.mark.parametrize("fixture_path", _legacy_fixture_paths())
+@pytest.mark.parametrize("fixture_path", fixture_paths())
 def test_golden_legacy_fixture_roundtrip_preserves_segment_ids_and_counts(fixture_path: str):
-    fixture = _legacy_fixture(fixture_path)
+    fixture = read_fixture(fixture_path)
     canonical = import_legacy_project(fixture)
     exported = export_legacy_project(canonical)["legacy_payload"]
 
@@ -77,9 +50,9 @@ def test_golden_legacy_fixture_roundtrip_preserves_segment_ids_and_counts(fixtur
         assert float(rt.get("Width") or 0) == pytest.approx(float(original.get("Width") or 0))
 
 
-@pytest.mark.parametrize("fixture_path", _legacy_fixture_paths())
+@pytest.mark.parametrize("fixture_path", fixture_paths())
 def test_golden_legacy_fixture_iwrap_roundtrip_produces_canonical_payload(fixture_path: str):
-    fixture = _legacy_fixture(fixture_path)
+    fixture = read_fixture(fixture_path)
     canonical = import_legacy_project(fixture)
 
     iwrap_xml = export_iwrap_xml(canonical)["iwrap_xml"]
