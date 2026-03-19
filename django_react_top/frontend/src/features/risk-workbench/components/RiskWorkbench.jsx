@@ -14,6 +14,8 @@ import { createWorkbenchClient } from '../api/workbenchClient';
 import { RouteCanvas } from './RouteCanvas';
 import { SegmentTable } from './SegmentTable';
 import { computeBounds, objectToSvgPolygon, segmentToSvgPath } from '../model/mapPreview';
+import { mapOsmSceneToLayers, mergeManualAndOsmObjects } from '../model/osmSceneModel';
+import { buildOsmTileViewport, isLikelyLonLatBounds, lonLatToPixel } from '../model/osmBasemap';
 import { buildCanonicalPayload, initialWorkbenchState, workbenchReducer } from '../model/workbenchState';
 import { useRunLifecycle } from '../hooks/useRunLifecycle';
 
@@ -268,12 +270,45 @@ function SettingsEditor({ state, dispatch }) {
   );
 }
 
-function MapPreviewPanel({ state, client, onError }) {
-  const bounds = useMemo(() => computeBounds(state.segmentData, state.objects), [state.segmentData, state.objects]);
+function MapPreviewPanel({ state, dispatch, client, onError }) {
   const [mapOverlaps, setMapOverlaps] = useState([]);
   const [loadingOverlaps, setLoadingOverlaps] = useState(false);
   const [overlapOpacity, setOverlapOpacity] = useState(0.55);
   const [showOverlapStroke, setShowOverlapStroke] = useState(true);
+  const [useOsmBasemap, setUseOsmBasemap] = useState(true);
+  const [osmZoom, setOsmZoom] = useState(7);
+  const [osmScene, setOsmScene] = useState({ land_areas: [], fixed_objects: [] });
+  const [landCrossings, setLandCrossings] = useState(null);
+  const [loadingScene, setLoadingScene] = useState(false);
+  const [loadingCrossings, setLoadingCrossings] = useState(false);
+
+  const osmLayers = useMemo(() => mapOsmSceneToLayers(osmScene), [osmScene]);
+  const mergedObjects = useMemo(
+    () => mergeManualAndOsmObjects(state.objects, osmScene.fixed_objects || []),
+    [state.objects, osmScene.fixed_objects],
+  );
+  const bounds = useMemo(
+    () => computeBounds(state.segmentData, mergedObjects, state.depths, osmLayers.landLayer),
+    [state.segmentData, mergedObjects, state.depths, osmLayers.landLayer],
+  );
+  const canUseOsm = useMemo(() => useOsmBasemap && isLikelyLonLatBounds(bounds), [useOsmBasemap, bounds]);
+  const tileViewport = useMemo(() => buildOsmTileViewport(bounds, osmZoom, 64), [bounds, osmZoom]);
+
+  const toPixelPoint = (point) => {
+    if (!canUseOsm) return point;
+    const px = lonLatToPixel(point[0], point[1], osmZoom);
+    return [px.x - tileViewport.minPixelX, px.y - tileViewport.minPixelY];
+  };
+
+  const toPixelPolygonPoints = (coords = []) => coords.map(([x, y]) => {
+    const [px, py] = toPixelPoint([x, y]);
+    return `${px},${py}`;
+  }).join(' ');
+
+  const toPixelPath = (coords = []) => coords.map(([x, y], idx) => {
+    const [px, py] = toPixelPoint([x, y]);
+    return `${idx === 0 ? 'M' : 'L'} ${px} ${py}`;
+  }).join(' ');
 
   const renderOverlapLayer = async () => {
     setLoadingOverlaps(true);
@@ -289,18 +324,65 @@ function MapPreviewPanel({ state, client, onError }) {
     }
   };
 
+  const buildScene = async () => {
+    setLoadingScene(true);
+    try {
+      const scene = await client.buildOsmScene(state.osmContext);
+      setOsmScene(scene);
+      onError('');
+    } catch (error) {
+      onError(error.message);
+    } finally {
+      setLoadingScene(false);
+    }
+  };
+
+  const evaluateCrossings = async () => {
+    setLoadingCrossings(true);
+    try {
+      const payload = buildCanonicalPayload(state);
+      const result = await client.evaluateLandCrossings(payload, state.osmContext);
+      setLandCrossings(result);
+      onError('');
+    } catch (error) {
+      onError(error.message);
+    } finally {
+      setLoadingCrossings(false);
+    }
+  };
+
+  const mergeOsmObjectsIntoManual = () => {
+    const merged = mergeManualAndOsmObjects(state.objects, osmScene.fixed_objects || []);
+    dispatch({ type: 'UPSERT_OBJECTS', objects: merged });
+  };
+
+  const viewWidth = canUseOsm ? tileViewport.width : bounds.width;
+  const viewHeight = canUseOsm ? tileViewport.height : bounds.height;
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Map preview</CardTitle>
-        <CardDescription>Live corridor polygons, route centerlines, and object overlays.</CardDescription>
+        <CardDescription>
+          OSM underlay + live corridor polygons, route centerlines, and manual/OSM object overlays.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" onClick={renderOverlapLayer} disabled={loadingOverlaps}>
             {loadingOverlaps ? 'Rendering…' : 'Render drift overlap layer'}
           </Button>
+          <Button variant="outline" onClick={buildScene} disabled={loadingScene}>
+            {loadingScene ? 'Loading OSM scene…' : 'Build OSM scene'}
+          </Button>
+          <Button variant="outline" onClick={evaluateCrossings} disabled={loadingCrossings}>
+            {loadingCrossings ? 'Evaluating…' : 'Evaluate land crossings'}
+          </Button>
+          <Button variant="outline" onClick={mergeOsmObjectsIntoManual} disabled={!osmScene.fixed_objects?.length}>
+            Merge OSM objects
+          </Button>
           {mapOverlaps.length > 0 && <Badge variant="secondary">{mapOverlaps.length} overlaps rendered</Badge>}
+          {landCrossings && <Badge variant="secondary">{landCrossings.count || 0} land crossings</Badge>}
           <div className="flex items-center gap-2 text-xs text-slate-600">
             <Label className="text-xs">Overlap opacity</Label>
             <Input
@@ -313,37 +395,128 @@ function MapPreviewPanel({ state, client, onError }) {
             <Switch checked={showOverlapStroke} onCheckedChange={setShowOverlapStroke} />
             <Label className="text-xs">Outline overlaps</Label>
           </div>
+          <div className="flex items-center gap-2">
+            <Switch checked={useOsmBasemap} onCheckedChange={setUseOsmBasemap} />
+            <Label className="text-xs">OSM basemap</Label>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-slate-600">
+            <Label className="text-xs">Zoom</Label>
+            <Input value={osmZoom} onChange={(e) => setOsmZoom(Math.max(1, Math.min(16, Number(e.target.value) || 7)))} className="h-8 w-16" />
+          </div>
         </div>
-        <svg viewBox={`${bounds.minX} ${-bounds.maxY} ${bounds.width} ${bounds.height}`} className="h-80 w-full rounded border border-slate-200 bg-slate-50">
-          {state.segmentData.map((segment, index) => (
-            <g key={`${segment.label}-${index}`}>
-              {segment.corridor_polygon?.length > 3 && (
-                <polygon points={segment.corridor_polygon.map(([x, y]) => `${x},${-y}`).join(' ')} fill="#93c5fd" opacity="0.35" />
-              )}
-              <path d={segmentToSvgPath(segment)} stroke="#0f172a" strokeWidth="0.5" fill="none" />
-            </g>
+
+        {useOsmBasemap && !canUseOsm && (
+          <Alert variant="warning">OSM basemap expects route/depth/object coordinates in lon/lat (WGS84). Using vector-only fallback preview.</Alert>
+        )}
+
+        <div className="relative h-80 w-full overflow-hidden rounded border border-slate-200 bg-slate-50">
+          {canUseOsm && tileViewport.tiles.map((tile) => (
+            <img
+              key={tile.key}
+              src={tile.url}
+              alt="OpenStreetMap tile"
+              className="absolute"
+              style={{ left: `${tile.left}px`, top: `${tile.top}px`, width: '256px', height: '256px' }}
+            />
           ))}
-          {mapOverlaps.map((overlap, index) => (
-            overlap.overlap_polygon?.length > 3 ? (
+
+          <svg
+            viewBox={canUseOsm ? `0 0 ${viewWidth} ${viewHeight}` : `${bounds.minX} ${-bounds.maxY} ${bounds.width} ${bounds.height}`}
+            className="absolute inset-0 h-full w-full"
+            preserveAspectRatio="none"
+          >
+            {osmLayers.landLayer.map((land, index) => (
               <polygon
-                key={`overlap-${overlap.segment_id}-${overlap.feature_id}-${index}`}
-                points={overlap.overlap_polygon.map(([x, y]) => `${x},${-y}`).join(' ')}
-                fill="#facc15"
-                opacity={overlapOpacity}
-                stroke={showOverlapStroke ? "#ca8a04" : "none"}
-                strokeWidth={showOverlapStroke ? "0.2" : "0"}
+                key={`${land.id}-${index}`}
+                points={canUseOsm ? toPixelPolygonPoints(land.coords || []) : objectToSvgPolygon(land)}
+                fill={land.style.fill}
+                stroke={land.style.stroke}
+                strokeWidth={canUseOsm ? 1 : 0.2}
+                opacity={0.45}
               />
-            ) : null
-          ))}
-          {state.objects.map((objectRow, index) => (
-            <polygon key={`${objectRow.feature_id}-${index}`} points={objectToSvgPolygon(objectRow)} fill="#fb7185" opacity="0.35" />
-          ))}
-        </svg>
+            ))}
+
+            {state.depths.map((depthRow, index) => (
+              <polygon
+                key={`${depthRow.feature_id || 'depth'}-${index}`}
+                points={canUseOsm ? toPixelPolygonPoints(depthRow.coords || []) : objectToSvgPolygon(depthRow)}
+                fill="#93c5fd"
+                opacity="0.25"
+              />
+            ))}
+
+            {state.segmentData.map((segment, index) => (
+              <g key={`${segment.label}-${index}`}>
+                {segment.corridor_polygon?.length > 3 && (
+                  <polygon
+                    points={canUseOsm ? toPixelPolygonPoints(segment.corridor_polygon) : segment.corridor_polygon.map(([x, y]) => `${x},${-y}`).join(' ')}
+                    fill="#93c5fd"
+                    opacity="0.35"
+                  />
+                )}
+                <path d={canUseOsm ? toPixelPath(segment.coords || []) : segmentToSvgPath(segment)} stroke="#0f172a" strokeWidth={canUseOsm ? '1.4' : '0.5'} fill="none" />
+              </g>
+            ))}
+
+            {mapOverlaps.map((overlap, index) => (
+              overlap.overlap_polygon?.length > 3 ? (
+                <polygon
+                  key={`overlap-${overlap.segment_id}-${overlap.feature_id}-${index}`}
+                  points={canUseOsm ? toPixelPolygonPoints(overlap.overlap_polygon) : overlap.overlap_polygon.map(([x, y]) => `${x},${-y}`).join(' ')}
+                  fill="#facc15"
+                  opacity={overlapOpacity}
+                  stroke={showOverlapStroke ? '#ca8a04' : 'none'}
+                  strokeWidth={showOverlapStroke ? (canUseOsm ? '1' : '0.2') : '0'}
+                />
+              ) : null
+            ))}
+
+            {mergedObjects.map((objectRow, index) => (
+              <polygon
+                key={`${objectRow.feature_id || 'obj'}-${index}`}
+                points={canUseOsm ? toPixelPolygonPoints(objectRow.coords || []) : objectToSvgPolygon(objectRow)}
+                fill={objectRow.source === 'osm' ? '#5b6d7d' : '#fb7185'}
+                opacity="0.42"
+              />
+            ))}
+          </svg>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div className="space-y-1">
+            <Label>OSM land features (GeoJSON Feature[])</Label>
+            <Textarea
+              className="min-h-[120px]"
+              value={JSON.stringify(state.osmContext.land_features || [], null, 2)}
+              onChange={(e) => {
+                try {
+                  dispatch({ type: 'UPDATE_OSM_CONTEXT', osmContext: { land_features: parseJsonArray(e.target.value, 'OSM land features') } });
+                  onError('');
+                } catch (error) {
+                  onError(error.message);
+                }
+              }}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label>OSM fixed-object features (GeoJSON Feature[])</Label>
+            <Textarea
+              className="min-h-[120px]"
+              value={JSON.stringify(state.osmContext.fixed_object_features || [], null, 2)}
+              onChange={(e) => {
+                try {
+                  dispatch({ type: 'UPDATE_OSM_CONTEXT', osmContext: { fixed_object_features: parseJsonArray(e.target.value, 'OSM fixed-object features') } });
+                  onError('');
+                } catch (error) {
+                  onError(error.message);
+                }
+              }}
+            />
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
-}
-
 function RunPanel({ state, dispatch, client }) {
   const { running, startRun } = useRunLifecycle(client, dispatch);
   const [readiness, setReadiness] = useState(null);
@@ -729,6 +902,7 @@ export function RiskWorkbench() {
       if (Array.isArray(parsed.depths)) dispatch({ type: 'UPSERT_DEPTHS', depths: parsed.depths });
       if (Array.isArray(parsed.objects)) dispatch({ type: 'UPSERT_OBJECTS', objects: parsed.objects });
       if (parsed.settings) dispatch({ type: 'UPDATE_SETTINGS', settings: parsed.settings });
+      if (parsed.osmContext) dispatch({ type: 'UPDATE_OSM_CONTEXT', osmContext: parsed.osmContext });
     } catch {
       // ignore invalid state
     }
@@ -743,9 +917,10 @@ export function RiskWorkbench() {
         depths: state.depths,
         objects: state.objects,
         settings: state.settings,
+        osmContext: state.osmContext,
       }),
     );
-  }, [state.segmentData, state.trafficData, state.depths, state.objects, state.settings]);
+  }, [state.segmentData, state.trafficData, state.depths, state.objects, state.settings, state.osmContext]);
 
   return (
     <div className="mx-auto max-w-7xl space-y-4 p-4">
@@ -787,7 +962,7 @@ export function RiskWorkbench() {
           <DataEditor dispatch={dispatch} onError={setErrorMessage} />
         </TabsContent>
         <TabsContent tabValue="map">
-          <MapPreviewPanel state={state} client={client} onError={setErrorMessage} />
+          <MapPreviewPanel state={state} dispatch={dispatch} client={client} onError={setErrorMessage} />
         </TabsContent>
         <TabsContent tabValue="diagnostics">
           <DiagnosticsPanel state={state} client={client} onError={setErrorMessage} />

@@ -17,10 +17,12 @@ export function objectToSvgPolygon(objectRow) {
   return coords.map(([x, y]) => `${x},${-y}`).join(' ');
 }
 
-export function computeBounds(segmentData = [], objects = []) {
+export function computeBounds(segmentData = [], objects = [], depths = [], extraPolygons = []) {
   const points = [];
   segmentData.forEach((s) => (s.coords || []).forEach((p) => points.push(p)));
   objects.forEach((o) => (o.coords || []).forEach((p) => points.push(p)));
+  depths.forEach((d) => (d.coords || []).forEach((p) => points.push(p)));
+  extraPolygons.forEach((poly) => (poly.coords || []).forEach((p) => points.push(p)));
 
   if (!points.length) {
     return { minX: 0, minY: 0, maxX: 1, maxY: 1, width: 1, height: 1 };
