@@ -10,10 +10,15 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from omrat_api.api.workbench_api import (
+    assess_project_readiness,
     build_osm_scene,
     create_route_segment,
     evaluate_land_crossings,
+    export_legacy_project,
+    export_iwrap_xml,
     ingest_ais,
+    import_iwrap_xml,
+    import_legacy_project,
     import_project,
     load_project,
     preview_corridor_overlaps,
@@ -52,6 +57,21 @@ class WorkbenchController:
         self, payload: dict[str, Any], osm_context: dict[str, Any]
     ) -> dict[str, Any]:
         return evaluate_land_crossings(payload, osm_context)
+
+    def assess_project_readiness(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return assess_project_readiness(payload)
+
+    def import_legacy_project(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return import_legacy_project(payload)
+
+    def export_legacy_project(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return export_legacy_project(payload)
+
+    def export_iwrap_xml(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return export_iwrap_xml(payload)
+
+    def import_iwrap_xml(self, xml_payload: str) -> dict[str, Any]:
+        return import_iwrap_xml(xml_payload)
 
 
     def create_route_segment(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -96,3 +116,26 @@ class WorkbenchController:
     def process_queue_once(self) -> dict[str, Any]:
         worker = RunQueueWorker(controller=self, task_manager=_TASK_MANAGER)
         return worker.poll_once()
+
+    def list_recent_runs(self, *, limit: int = 20) -> dict[str, Any]:
+        tasks = _TASK_MANAGER.list_tasks(limit=max(limit, 1) * 3)
+        runs: list[dict[str, Any]] = []
+        for task in tasks:
+            result = task.result or {}
+            if task.state != "completed" or not isinstance(result, dict):
+                continue
+            runs.append(
+                {
+                    "task_id": task.task_id,
+                    "state": task.state,
+                    "updated_at": task.updated_at,
+                    "report_path": result.get("report_path", ""),
+                    "status": result.get("status", task.state),
+                    "powered_summary": result.get("powered_summary", {}),
+                    "drifting_summary": result.get("drifting_summary", {}),
+                    "osm_summary": result.get("osm_summary", {}),
+                }
+            )
+            if len(runs) >= limit:
+                break
+        return {"runs": runs}

@@ -7,9 +7,14 @@ from dataclasses import dataclass
 from typing import Any, Callable
 
 from omrat_api.api.workbench_api import (
+    assess_project_readiness,
     build_osm_scene,
     evaluate_land_crossings,
+    export_legacy_project,
+    export_iwrap_xml,
     import_project,
+    import_iwrap_xml,
+    import_legacy_project,
     ingest_ais,
     load_project,
     start_analysis,
@@ -58,10 +63,57 @@ def _with_required_keys(
     return wrapped
 
 
+def _parse_bool_field(payload: dict[str, Any], key: str, *, default: bool) -> bool:
+    """Parse boolean fields from JSON payloads with strict validation."""
+    value = payload.get(key, default)
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int) and value in (0, 1):
+        return bool(value)
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"true", "1", "yes"}:
+            return True
+        if lowered in {"false", "0", "no"}:
+            return False
+    raise ValidationError(f"Field '{key}' must be a boolean")
+
+
+def _parse_int_field(
+    payload: dict[str, Any],
+    key: str,
+    *,
+    default: int,
+    minimum: int | None = None,
+    maximum: int | None = None,
+) -> int:
+    """Parse integer fields from JSON payloads with strict validation."""
+    value = payload.get(key, default)
+    if isinstance(value, bool):
+        raise ValidationError(f"Field '{key}' must be an integer")
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValidationError(f"Field '{key}' must be an integer") from exc
+
+    if minimum is not None and parsed < minimum:
+        raise ValidationError(f"Field '{key}' must be >= {minimum}")
+    if maximum is not None and parsed > maximum:
+        raise ValidationError(f"Field '{key}' must be <= {maximum}")
+    return parsed
+
+
 def _import_project_handler(payload: dict[str, Any]) -> dict[str, Any]:
     _require_keys(payload, ("current_state", "incoming_payload"))
-    merge = bool(payload.get("merge", True))
+    merge = _parse_bool_field(payload, "merge", default=True)
     return import_project(payload["current_state"], payload["incoming_payload"], merge=merge)
+
+
+def _enqueue_run_handler(payload: dict[str, Any]) -> dict[str, Any]:
+    max_attempts = _parse_int_field(payload, "max_attempts", default=3, minimum=1, maximum=10)
+    normalized_payload = dict(payload)
+    normalized_payload["max_attempts"] = max_attempts
+    return _CONTROLLER.enqueue_run(normalized_payload)
 
 
 def _execute_run_handler(payload: dict[str, Any]) -> dict[str, Any]:
@@ -89,30 +141,64 @@ def _evaluate_land_crossings_handler(payload: dict[str, Any]) -> dict[str, Any]:
     return evaluate_land_crossings(payload["payload"], payload["osm_context"])
 
 
-def _endpoint_specs() -> dict[str, EndpointSpec]:
-    return {
-        "load-project": EndpointSpec(
-            handler=_with_required_keys(load_project, keys=("segment_data", "traffic_data", "depths", "objects", "settings"))
-        ),
-        "import-project": EndpointSpec(handler=_import_project_handler),
-        "ingest-ais": EndpointSpec(handler=_ingest_ais_handler),
-        "build-osm-scene": EndpointSpec(handler=_build_osm_scene_handler),
-        "evaluate-land-crossings": EndpointSpec(handler=_evaluate_land_crossings_handler),
-        "create-route-segment": EndpointSpec(
-            handler=_with_required_keys(
-                _CONTROLLER.create_route_segment,
-                keys=("start_point", "end_point"),
-            )
-        ),
-        "sync-layers": EndpointSpec(handler=_CONTROLLER.sync_layers),
-        "preview-corridor-overlaps": EndpointSpec(handler=_CONTROLLER.preview_corridor_overlaps),
-        "enqueue-run": EndpointSpec(handler=_CONTROLLER.enqueue_run),
-        "execute-run": EndpointSpec(handler=_execute_run_handler),
-        "execute-run-async": EndpointSpec(handler=_execute_run_handler),
-        "get-task": EndpointSpec(handler=_get_task_handler),
-        "start-analysis": EndpointSpec(handler=start_analysis),
-        "process-queue": EndpointSpec(handler=lambda _payload: _CONTROLLER.process_queue_once()),
-    }
+def _assess_project_readiness_handler(payload: dict[str, Any]) -> dict[str, Any]:
+    _require_keys(payload, ("segment_data", "traffic_data", "depths", "objects", "settings"))
+    return assess_project_readiness(payload)
+
+
+def _import_legacy_project_handler(payload: dict[str, Any]) -> dict[str, Any]:
+    return import_legacy_project(payload)
+
+
+def _export_legacy_project_handler(payload: dict[str, Any]) -> dict[str, Any]:
+    _require_keys(payload, ("segment_data", "traffic_data", "depths", "objects", "settings"))
+    return export_legacy_project(payload)
+
+
+def _export_iwrap_xml_handler(payload: dict[str, Any]) -> dict[str, Any]:
+    _require_keys(payload, ("segment_data", "traffic_data", "depths", "objects", "settings"))
+    return export_iwrap_xml(payload)
+
+
+def _import_iwrap_xml_handler(payload: dict[str, Any]) -> dict[str, Any]:
+    _require_keys(payload, ("iwrap_xml",))
+    return import_iwrap_xml(payload["iwrap_xml"])
+
+
+def _list_runs_handler(payload: dict[str, Any]) -> dict[str, Any]:
+    limit = _parse_int_field(payload, "limit", default=20, minimum=1, maximum=200)
+    return _CONTROLLER.list_recent_runs(limit=limit)
+
+
+_ENDPOINT_SPECS: dict[str, EndpointSpec] = {
+    "load-project": EndpointSpec(
+        handler=_with_required_keys(load_project, keys=("segment_data", "traffic_data", "depths", "objects", "settings"))
+    ),
+    "import-project": EndpointSpec(handler=_import_project_handler),
+    "ingest-ais": EndpointSpec(handler=_ingest_ais_handler),
+    "build-osm-scene": EndpointSpec(handler=_build_osm_scene_handler),
+    "evaluate-land-crossings": EndpointSpec(handler=_evaluate_land_crossings_handler),
+    "assess-project-readiness": EndpointSpec(handler=_assess_project_readiness_handler),
+    "import-legacy-project": EndpointSpec(handler=_import_legacy_project_handler),
+    "export-legacy-project": EndpointSpec(handler=_export_legacy_project_handler),
+    "export-iwrap-xml": EndpointSpec(handler=_export_iwrap_xml_handler),
+    "import-iwrap-xml": EndpointSpec(handler=_import_iwrap_xml_handler),
+    "list-runs": EndpointSpec(handler=_list_runs_handler),
+    "create-route-segment": EndpointSpec(
+        handler=_with_required_keys(
+            _CONTROLLER.create_route_segment,
+            keys=("start_point", "end_point"),
+        )
+    ),
+    "sync-layers": EndpointSpec(handler=_CONTROLLER.sync_layers),
+    "preview-corridor-overlaps": EndpointSpec(handler=_CONTROLLER.preview_corridor_overlaps),
+    "enqueue-run": EndpointSpec(handler=_enqueue_run_handler),
+    "execute-run": EndpointSpec(handler=_execute_run_handler),
+    "execute-run-async": EndpointSpec(handler=_execute_run_handler),
+    "get-task": EndpointSpec(handler=_get_task_handler),
+    "start-analysis": EndpointSpec(handler=start_analysis),
+    "process-queue": EndpointSpec(handler=lambda _payload: _CONTROLLER.process_queue_once()),
+}
 
 
 def dispatch_workbench_action(
@@ -123,7 +209,7 @@ def dispatch_workbench_action(
 ) -> dict[str, Any]:
     """Execute a workbench action and return a normalized response envelope."""
     request_payload = payload or {}
-    spec = _endpoint_specs().get(action)
+    spec = _ENDPOINT_SPECS.get(action)
     if spec is None:
         decision = AuthDecision(allowed=False, role="unknown", reason="Action not found")
         audit_log(action=action, payload=request_payload, decision=decision, outcome="not_found")

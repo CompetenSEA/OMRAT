@@ -12,8 +12,11 @@ from omrat_api.engine.geometry_engine import GeometryEngine
 from omrat_api.engine.layer_store import LayerStore
 from omrat_api.services.ais_ingestion import AISIngestionService
 from omrat_api.services.map_layer_service import MapLayerService
+from omrat_api.services.legacy_project_compat import LegacyProjectCompatService
+from omrat_api.services.iwrap_service import IWrapService
 from omrat_api.services.osm_scene_service import OSMSceneService
 from omrat_api.services.project_io import ProjectIOService
+from omrat_api.services.readiness_service import ProjectReadinessService
 from omrat_api.services.route_editing_service import RouteEditingService
 from omrat_api.services.run_orchestration import RunOrchestrationService
 
@@ -83,3 +86,27 @@ def preview_corridor_overlaps(payload: Dict[str, Any]) -> Dict[str, Any]:
         "overlaps": [asdict(item) for item in overlaps],
         "count": len(overlaps),
     }
+
+
+def assess_project_readiness(payload: Mapping[str, Any]) -> Dict[str, Any]:
+    return ProjectReadinessService.assess(payload)
+
+
+def import_legacy_project(payload: Mapping[str, Any]) -> Dict[str, Any]:
+    state = ProjectIOService.load(LegacyProjectCompatService.from_legacy(payload))
+    return state.as_json_dict()
+
+
+def export_legacy_project(payload: Mapping[str, Any]) -> Dict[str, Any]:
+    state = ProjectIOService.load(payload)
+    return {"legacy_payload": LegacyProjectCompatService.to_legacy(state.as_json_dict())}
+
+
+def export_iwrap_xml(payload: Mapping[str, Any]) -> Dict[str, Any]:
+    state = ProjectIOService.load(payload)
+    return {"iwrap_xml": IWrapService.export_xml(state.as_json_dict())}
+
+
+def import_iwrap_xml(xml_payload: str) -> Dict[str, Any]:
+    state = ProjectIOService.load(IWrapService.import_xml(xml_payload))
+    return state.as_json_dict()

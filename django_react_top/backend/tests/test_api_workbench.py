@@ -1,8 +1,13 @@
 from omrat_api.api.workbench_api import (
+    assess_project_readiness,
     build_osm_scene,
     create_route_segment,
     evaluate_land_crossings,
+    export_legacy_project,
+    export_iwrap_xml,
     ingest_ais,
+    import_iwrap_xml,
+    import_legacy_project,
     import_project,
     load_project,
     preview_corridor_overlaps,
@@ -177,3 +182,64 @@ def test_create_route_segment_replaces_qgis_leg_generation():
     assert segment["tangent_line"]["start"] == (7.0, -2.0)
     assert segment["tangent_line"]["end"] == (7.0, 6.0)
     assert len(segment["corridor_polygon"]) == 5
+
+
+def test_assess_project_readiness_reports_blockers_and_warnings():
+    readiness = assess_project_readiness(
+        {
+            "segment_data": [{"segment_id": "S1", "from_waypoint": "A", "to_waypoint": "B", "width_m": 50}],
+            "traffic_data": [],
+            "depths": [],
+            "objects": [],
+            "settings": {"model_name": "demo", "report_path": "", "causation_version": "v1"},
+        }
+    )
+
+    assert readiness["ready_for_run"] is False
+    assert readiness["counts"]["blocking_issues"] >= 1
+    assert readiness["counts"]["warnings"] >= 1
+
+
+def test_legacy_project_import_export_contracts():
+    legacy_payload = {
+        "segment_data": {
+            "S1": {
+                "Segment_Id": "S1",
+                "Route_Id": "1",
+                "Leg_name": "LEG_1",
+                "Start_Point": "0 0",
+                "End_Point": "10 0",
+                "Width": 100,
+            }
+        },
+        "traffic_data": {"S1": {"East going": {"Frequency (ships/year)": [[12, 3]]}}},
+        "depths": [["D1", "-12", "POLYGON(...)"]],
+        "objects": [["O1", "15", "POLYGON(...)"]],
+        "model_name": "legacy-model",
+        "report_path": "/tmp/legacy.md",
+    }
+
+    imported = import_legacy_project(legacy_payload)
+    assert imported["segment_data"][0]["segment_id"] == "S1"
+    assert imported["traffic_data"][0]["annual_transits"] == 15
+
+    exported = export_legacy_project(imported)
+    assert "legacy_payload" in exported
+    assert exported["legacy_payload"]["segment_data"]["S1"]["Width"] == 100.0
+
+
+def test_iwrap_export_import_roundtrip_contracts():
+    canonical_payload = {
+        "segment_data": [
+            {"segment_id": "S1", "from_waypoint": "A", "to_waypoint": "B", "width_m": 50, "coords": [(0, 0), (1, 1)]}
+        ],
+        "traffic_data": [{"segment_id": "S1", "ship_category": "East going", "annual_transits": 10}],
+        "depths": [{"feature_id": "D1", "depth_m": -8}],
+        "objects": [{"feature_id": "O1", "object_type": "Platform"}],
+        "settings": {"model_name": "demo", "report_path": "/tmp/demo.md", "causation_version": "v1"},
+    }
+    exported = export_iwrap_xml(canonical_payload)
+    assert "<riskmodel" in exported["iwrap_xml"]
+
+    imported = import_iwrap_xml(exported["iwrap_xml"])
+    assert len(imported["segment_data"]) >= 1
