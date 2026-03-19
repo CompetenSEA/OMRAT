@@ -127,7 +127,7 @@ function RouteEditor({ state, dispatch, onError, client }) {
       <CardHeader>
         <CardTitle>Route editor</CardTitle>
         <CardDescription>
-          QGIS-mimic leg drawing with map clicks, chained continuation, snapping, and inline segment re-editing.
+          Web-native leg drawing with map clicks, chained continuation, snapping, and inline segment re-editing.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -389,7 +389,7 @@ export function RiskWorkbench() {
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">OMRAT Risk Workbench</h1>
-          <p className="text-sm text-slate-500">QGIS-free React + Django workflow with shadcn/ui patterns.</p>
+          <p className="text-sm text-slate-500">Standalone React + Django workflow with shadcn/ui patterns.</p>
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="secondary">{state.activeTab}</Badge>

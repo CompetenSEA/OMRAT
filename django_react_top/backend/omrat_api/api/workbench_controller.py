@@ -1,10 +1,12 @@
 """Stateful workbench controller for Django/DRF endpoints.
 
-This layer mimics plugin-style long-running task tracking without QGIS.
+This layer provides web-native long-running task tracking semantics.
 """
 
 from __future__ import annotations
 
+import os
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from omrat_api.api.workbench_api import (
@@ -19,9 +21,14 @@ from omrat_api.api.workbench_api import (
     sync_layers,
 )
 from omrat_api.errors import TaskExecutionError
+from omrat_api.services.run_worker import RunQueueWorker
 from omrat_api.services.task_manager import TaskManagerService
 
-_TASK_MANAGER = TaskManagerService()
+_TASK_MANAGER = TaskManagerService(
+    db_path=os.getenv("OMRAT_TASK_DB_PATH"),
+    db_url=os.getenv("OMRAT_DATABASE_URL"),
+)
+_RUN_EXECUTOR = ThreadPoolExecutor(max_workers=2, thread_name_prefix="omrat-runner")
 
 
 class WorkbenchController:
@@ -57,7 +64,7 @@ class WorkbenchController:
         return preview_corridor_overlaps(payload)
 
     def enqueue_run(self, payload: dict[str, Any]) -> dict[str, Any]:
-        task = _TASK_MANAGER.create_task(payload, message="Run queued")
+        task = _TASK_MANAGER.create_task(payload, message="Run queued", max_attempts=payload.get("max_attempts", 3))
         return task.as_dict()
 
     def execute_run(self, task_id: str) -> dict[str, Any]:
@@ -79,3 +86,13 @@ class WorkbenchController:
 
     def get_task(self, task_id: str) -> dict[str, Any]:
         return _TASK_MANAGER.get_task(task_id).as_dict()
+
+    def execute_run_async(self, task_id: str) -> dict[str, Any]:
+        """Schedule run execution on a background worker thread."""
+        _RUN_EXECUTOR.submit(self.execute_run, task_id)
+        task = _TASK_MANAGER.get_task(task_id)
+        return task.as_dict()
+
+    def process_queue_once(self) -> dict[str, Any]:
+        worker = RunQueueWorker(controller=self, task_manager=_TASK_MANAGER)
+        return worker.poll_once()

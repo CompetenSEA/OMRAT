@@ -25,6 +25,14 @@ def execute_run(task_id: str) -> dict[str, Any]:
     return _CONTROLLER.execute_run(task_id)
 
 
+def execute_run_async(task_id: str) -> dict[str, Any]:
+    return _CONTROLLER.execute_run_async(task_id)
+
+
+def process_queue_once() -> dict[str, Any]:
+    return _CONTROLLER.process_queue_once()
+
+
 def get_task(task_id: str) -> dict[str, Any]:
     return _CONTROLLER.get_task(task_id)
 

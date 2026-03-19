@@ -1,4 +1,4 @@
-"""Pure-python route editing helpers replacing QGIS-specific map functions."""
+"""Pure-python route editing helpers for web-native map interactions."""
 
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ class RouteSegmentDraft:
 
 
 class RouteEditingService:
-    """QGIS-free implementation of route editing geometry helpers."""
+    """Standalone implementation of route editing geometry helpers."""
 
     @staticmethod
     def parse_point(value: XYPoint | Iterable[float]) -> XYPoint:

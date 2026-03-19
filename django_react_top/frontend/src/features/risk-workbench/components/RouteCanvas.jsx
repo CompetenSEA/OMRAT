@@ -33,7 +33,7 @@ export function RouteCanvas({ previewStart, previewEnd, onCanvasPoint, snapToGri
 
   return (
     <div>
-      <Label>Route canvas (QGIS map tool mimic)</Label>
+      <Label>Route canvas (web map interactions)</Label>
       <svg
         role="button"
         tabIndex={0}

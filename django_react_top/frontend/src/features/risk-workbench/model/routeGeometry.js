@@ -1,5 +1,5 @@
 /**
- * Route editing helpers that replace QGIS map-tool geometry behavior.
+ * Route editing helpers for standalone web map behavior.
  */
 
 export function isValidPointPair(start, end) {
