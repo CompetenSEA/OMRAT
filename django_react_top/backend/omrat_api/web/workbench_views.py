@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import time
 from dataclasses import dataclass
 from typing import Any, Callable
 
@@ -21,7 +22,7 @@ from omrat_api.api.workbench_api import (
 )
 from omrat_api.api.workbench_controller import WorkbenchController
 from omrat_api.errors import ImportMergeError, OmratAPIError, TaskExecutionError, ValidationError
-from omrat_api.security import AuthDecision, audit_log, authorize
+from omrat_api.security import AuthDecision, audit_log, authorize, build_request_fingerprint
 
 try:  # pragma: no cover - optional runtime dependency
     from django.http import HttpRequest, JsonResponse
@@ -37,12 +38,41 @@ except Exception:  # pragma: no cover - tests run without Django installed
 _CONTROLLER = WorkbenchController()
 
 
+_GENERIC_ERROR_CODE_REGISTRY: dict[str, tuple[str, str]] = {
+    "not_found": ("workbench.action.not_found", "WB_ACTION_NOT_FOUND"),
+    "method_not_allowed": ("workbench.http.method_not_allowed", "WB_HTTP_METHOD_NOT_ALLOWED"),
+    "invalid_json": ("workbench.http.invalid_json", "WB_HTTP_INVALID_JSON"),
+}
+
+
 @dataclass(frozen=True)
 class EndpointSpec:
     """Endpoint contract used by the framework-agnostic dispatcher."""
 
     handler: Callable[[dict[str, Any]], dict[str, Any]]
     required_keys: tuple[str, ...] = ()
+
+
+def _build_error_payload(action: str, error_type: str, message: str) -> dict[str, str]:
+    """Build a stable, endpoint-specific error payload for frontend handling."""
+    action_key = (action or "unknown").replace("-", "_")
+    if action in _ENDPOINT_SPECS:
+        code = f"workbench.{action_key}.{error_type}"
+        message_id = f"WB_{action_key.upper()}_{error_type.upper()}"
+    else:
+        mapped = _GENERIC_ERROR_CODE_REGISTRY.get(error_type)
+        if mapped:
+            code, message_id = mapped
+        else:
+            code = f"workbench.action.{error_type}"
+            message_id = f"WB_ACTION_{error_type.upper()}"
+    return {
+        "type": error_type,
+        "message": message,
+        "code": code,
+        "message_id": message_id,
+        "action": action,
+    }
 
 
 def _require_keys(payload: dict[str, Any], keys: tuple[str, ...]) -> None:
@@ -170,6 +200,11 @@ def _list_runs_handler(payload: dict[str, Any]) -> dict[str, Any]:
     return _CONTROLLER.list_recent_runs(limit=limit)
 
 
+def _queue_metrics_handler(payload: dict[str, Any]) -> dict[str, Any]:
+    limit = _parse_int_field(payload, "limit", default=200, minimum=1, maximum=1000)
+    return _CONTROLLER.characterize_queue(limit=limit)
+
+
 _ENDPOINT_SPECS: dict[str, EndpointSpec] = {
     "load-project": EndpointSpec(
         handler=_with_required_keys(load_project, keys=("segment_data", "traffic_data", "depths", "objects", "settings"))
@@ -184,6 +219,7 @@ _ENDPOINT_SPECS: dict[str, EndpointSpec] = {
     "export-iwrap-xml": EndpointSpec(handler=_export_iwrap_xml_handler),
     "import-iwrap-xml": EndpointSpec(handler=_import_iwrap_xml_handler),
     "list-runs": EndpointSpec(handler=_list_runs_handler),
+    "queue-metrics": EndpointSpec(handler=_queue_metrics_handler),
     "create-route-segment": EndpointSpec(
         handler=_with_required_keys(
             _CONTROLLER.create_route_segment,
@@ -209,40 +245,111 @@ def dispatch_workbench_action(
 ) -> dict[str, Any]:
     """Execute a workbench action and return a normalized response envelope."""
     request_payload = payload or {}
+    start = time.perf_counter()
+    fingerprint = build_request_fingerprint(action, request_payload)
     spec = _ENDPOINT_SPECS.get(action)
     if spec is None:
         decision = AuthDecision(allowed=False, role="unknown", reason="Action not found")
-        audit_log(action=action, payload=request_payload, decision=decision, outcome="not_found")
-        return {"ok": False, "error": {"type": "not_found", "message": f"Unknown workbench action: {action}"}}
+        audit_log(
+            action=action,
+            payload=request_payload,
+            decision=decision,
+            outcome="not_found",
+            request_fingerprint=fingerprint,
+            latency_ms=(time.perf_counter() - start) * 1000.0,
+        )
+        return {
+            "ok": False,
+            "error": _build_error_payload(action, "not_found", f"Unknown workbench action: {action}"),
+        }
     decision = authorize(action, request_payload, auth_token)
     if not decision.allowed:
-        audit_log(action=action, payload=request_payload, decision=decision, outcome="unauthorized")
-        return {"ok": False, "error": {"type": "unauthorized", "message": "Invalid auth token or project scope"}}
+        audit_log(
+            action=action,
+            payload=request_payload,
+            decision=decision,
+            outcome="unauthorized",
+            request_fingerprint=fingerprint,
+            latency_ms=(time.perf_counter() - start) * 1000.0,
+        )
+        return {
+            "ok": False,
+            "error": _build_error_payload(action, "unauthorized", "Invalid auth token or project scope"),
+        }
 
     try:
         if action == "execute-run-async":
             _require_keys(request_payload, ("task_id",))
             result = _CONTROLLER.execute_run_async(request_payload["task_id"])
-            audit_log(action=action, payload=request_payload, decision=decision, outcome="ok")
+            audit_log(
+                action=action,
+                payload=request_payload,
+                decision=decision,
+                outcome="ok",
+                request_fingerprint=fingerprint,
+                latency_ms=(time.perf_counter() - start) * 1000.0,
+            )
             return {"ok": True, "data": result}
         result = spec.handler(request_payload)
-        audit_log(action=action, payload=request_payload, decision=decision, outcome="ok")
+        audit_log(
+            action=action,
+            payload=request_payload,
+            decision=decision,
+            outcome="ok",
+            request_fingerprint=fingerprint,
+            latency_ms=(time.perf_counter() - start) * 1000.0,
+        )
         return {"ok": True, "data": result}
     except ValidationError as exc:
-        audit_log(action=action, payload=request_payload, decision=decision, outcome="validation_error")
-        return {"ok": False, "error": {"type": "validation_error", "message": str(exc)}}
+        audit_log(
+            action=action,
+            payload=request_payload,
+            decision=decision,
+            outcome="validation_error",
+            request_fingerprint=fingerprint,
+            latency_ms=(time.perf_counter() - start) * 1000.0,
+        )
+        return {"ok": False, "error": _build_error_payload(action, "validation_error", str(exc))}
     except ImportMergeError as exc:
-        audit_log(action=action, payload=request_payload, decision=decision, outcome="import_error")
-        return {"ok": False, "error": {"type": "import_error", "message": str(exc)}}
+        audit_log(
+            action=action,
+            payload=request_payload,
+            decision=decision,
+            outcome="import_error",
+            request_fingerprint=fingerprint,
+            latency_ms=(time.perf_counter() - start) * 1000.0,
+        )
+        return {"ok": False, "error": _build_error_payload(action, "import_error", str(exc))}
     except TaskExecutionError as exc:
-        audit_log(action=action, payload=request_payload, decision=decision, outcome="task_error")
-        return {"ok": False, "error": {"type": "task_error", "message": str(exc)}}
+        audit_log(
+            action=action,
+            payload=request_payload,
+            decision=decision,
+            outcome="task_error",
+            request_fingerprint=fingerprint,
+            latency_ms=(time.perf_counter() - start) * 1000.0,
+        )
+        return {"ok": False, "error": _build_error_payload(action, "task_error", str(exc))}
     except OmratAPIError as exc:
-        audit_log(action=action, payload=request_payload, decision=decision, outcome="api_error")
-        return {"ok": False, "error": {"type": "api_error", "message": str(exc)}}
+        audit_log(
+            action=action,
+            payload=request_payload,
+            decision=decision,
+            outcome="api_error",
+            request_fingerprint=fingerprint,
+            latency_ms=(time.perf_counter() - start) * 1000.0,
+        )
+        return {"ok": False, "error": _build_error_payload(action, "api_error", str(exc))}
     except Exception as exc:  # pragma: no cover - defensive catch for HTTP adapter boundary
-        audit_log(action=action, payload=request_payload, decision=decision, outcome="unexpected_error")
-        return {"ok": False, "error": {"type": "unexpected_error", "message": str(exc)}}
+        audit_log(
+            action=action,
+            payload=request_payload,
+            decision=decision,
+            outcome="unexpected_error",
+            request_fingerprint=fingerprint,
+            latency_ms=(time.perf_counter() - start) * 1000.0,
+        )
+        return {"ok": False, "error": _build_error_payload(action, "unexpected_error", str(exc))}
 
 
 @csrf_exempt
@@ -253,7 +360,7 @@ def workbench_action_view(request: HttpRequest, action: str):  # pragma: no cove
 
     if request.method != "POST":
         return JsonResponse(
-            {"ok": False, "error": {"type": "method_not_allowed", "message": "Only POST is supported"}},
+            {"ok": False, "error": _build_error_payload(action, "method_not_allowed", "Only POST is supported")},
             status=405,
         )
 
@@ -261,7 +368,7 @@ def workbench_action_view(request: HttpRequest, action: str):  # pragma: no cove
         payload = json.loads(request.body.decode("utf-8")) if request.body else {}
     except json.JSONDecodeError as exc:
         return JsonResponse(
-            {"ok": False, "error": {"type": "invalid_json", "message": str(exc)}},
+            {"ok": False, "error": _build_error_payload(action, "invalid_json", str(exc))},
             status=400,
         )
 

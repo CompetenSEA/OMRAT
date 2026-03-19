@@ -97,3 +97,20 @@ def test_task_manager_list_tasks_filters_and_limits():
 
     limited = manager.list_tasks(limit=1)
     assert len(limited) == 1
+
+
+def test_task_manager_characterize_throughput_returns_latency_metrics():
+    manager = TaskManagerService()
+    t1 = manager.create_task(_payload(), message="first")
+    t2 = manager.create_task(_payload(), message="second")
+    manager.start_task(t1.task_id, message="running")
+    manager.complete_task(t1.task_id, {"status": "completed"})
+    manager.start_task(t2.task_id, message="running")
+    manager.fail_task(t2.task_id, "boom")
+
+    metrics = manager.characterize_throughput(limit=50)
+    assert metrics["window_size"] >= 2
+    assert metrics["state_counts"]["completed"] >= 1
+    assert metrics["state_counts"]["failed"] >= 1
+    assert metrics["avg_queue_wait_s"] >= 0
+    assert metrics["avg_run_duration_s"] >= 0

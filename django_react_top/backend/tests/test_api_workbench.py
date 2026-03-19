@@ -14,6 +14,8 @@ from omrat_api.api.workbench_api import (
     start_analysis,
     sync_layers,
 )
+from omrat_api.services.run_orchestration import RunOrchestrationService
+from omrat_api.adapters.execution_adapter import PluginEquivalentExecutionAdapter
 
 
 def _osm_context():
@@ -130,7 +132,7 @@ def test_osm_scene_and_land_crossings():
     assert crossings["count"] == 1
 
 
-def test_start_analysis_uses_simulation_adapter_with_osm_context():
+def test_start_analysis_uses_shadow_cascade_adapter_with_osm_context():
     summary = start_analysis(
         {
             "segment_data": [
@@ -157,10 +159,54 @@ def test_start_analysis_uses_simulation_adapter_with_osm_context():
     )
 
     assert summary["status"] == "completed"
+    assert summary["powered_summary"]["engine"] == "shadow-cascade"
+    assert summary["drifting_summary"]["engine"] == "shadow-cascade"
     assert summary["powered_summary"]["segments"] == 1
     assert summary["drifting_summary"]["objects"] >= 1
     assert summary["osm_summary"]["land_crossing_count"] == 1
     assert summary["osm_summary"]["osm_fixed_objects_added"] == 1
+
+
+def test_run_orchestration_allows_simulation_mode_override(monkeypatch):
+    monkeypatch.setenv("OMRAT_EXECUTION_ADAPTER", "simulation")
+    service = RunOrchestrationService()
+    summary = service.start_run(
+        {
+            "segment_data": [{"segment_id": "S1", "coords": [(0, 0), (10, 0)], "width_m": 10}],
+            "traffic_data": [{"segment_id": "S1", "ship_category": "Cargo", "annual_transits": 1}],
+            "depths": [],
+            "objects": [{"feature_id": "O1", "coords": [(1, -1), (2, -1), (2, 1), (1, 1)]}],
+            "settings": {"report_path": "/tmp/sim.md"},
+        }
+    )
+    assert summary.powered_summary["engine"] == "simulation"
+    assert summary.drifting_summary["engine"] == "simulation"
+
+
+def test_run_orchestration_auto_falls_back_when_plugin_adapter_fails(monkeypatch):
+    monkeypatch.setenv("OMRAT_EXECUTION_ADAPTER", "auto")
+
+    def _boom(self, *, run_id, payload):
+        raise RuntimeError("plugin runtime unavailable")
+
+    monkeypatch.setattr(PluginEquivalentExecutionAdapter, "run_model", _boom)
+    service = RunOrchestrationService()
+    summary = service.start_run(
+        {
+            "segment_data": [{"segment_id": "S1", "coords": [(0, 0), (10, 0)], "width_m": 10}],
+            "traffic_data": [{"segment_id": "S1", "ship_category": "Cargo", "annual_transits": 1}],
+            "depths": [],
+            "objects": [{"feature_id": "O1", "coords": [(1, -1), (2, -1), (2, 1), (1, 1)]}],
+            "settings": {"report_path": "/tmp/auto.md"},
+        }
+    )
+    assert summary.powered_summary["engine"] in {"shadow-cascade", "simulation"}
+
+
+def test_run_orchestration_plugin_mode_selects_plugin_adapter(monkeypatch):
+    monkeypatch.setenv("OMRAT_EXECUTION_ADAPTER", "plugin-equivalent")
+    service = RunOrchestrationService()
+    assert isinstance(service.adapter, PluginEquivalentExecutionAdapter)
 
 
 def test_create_route_segment_replaces_qgis_leg_generation():

@@ -1,0 +1,199 @@
+<?xml version="1.0" ?>
+<riskmodel name="OMRAT Project" guid="94305177-BE04-4522-A2DA-E1B04DC1D8BD" fv="2" major="1" minor="0" seasons="0" current_season="-1" data_job_id="" denc_used="" data_country="" data_start="" data_end="" ship_type_version="1.0" trafficAdjustmentFactor="1" grounding_safety_margin="0" grounding_safety_margin_by_type="false" calc_squat="false" min_squat_area_size_ship_size_ratio="100" timezone="(GMT+01:00) Amsterdam, Berlin, Bern" default_max_leg_width="5000" org_model_dir="" data_work_base_dir="" data_set_dir="" data_import_dir="" density_output_dir="" speed_density_output_dir="" heatmap_output_dir="" passageline_output_dir="" simulator_config_dir="" simulator_output_dir="" shared_bathymetry_file="" shared_structure_file="" default_max_leg_extension_length="49000" use_leg_interaction="true" use_32bit_compatability_mode="1" default_max_leg_interaction_angle="3" use_avoid_own_ship_algo="false" use_fixed_draught="false" use_built_in_shiptypes="true" use_class_b="true" use_check_for_legs_on_straight_line_algo="false" use_anchor_check="true" use_spatial_index="true" grounding_accuracy="10" use_width_from_data="false" ship_type_def_file="" ship_type_def_file_base="" ship_type_signature="" ship_type_def_dont_care="" shared_area_store_file="" height_mode="0" height_scale_factor="1" height_test="0" fixed_to_year_factor="0" use_fixed_to_year_factor="false" misc="B|calc_allision|1@B|calc_area|1@B|calc_collisions|1@B|calc_crossing|1@B|calc_drifting_allision|1@B|calc_drifting_grounding|1@B|calc_grounding|1@B|calc_headon_overtaking|1@B|calc_powered_allision|1@B|calc_powered_grounding|1" default_class_a_length="50" default_class_b_length="25" default_class_a_type="Other ship" default_class_b_type="Other ship">
+  <ship_type_data/>
+  <passagelines/>
+  <traffic_distributions>
+    <traffic_distribution adjustment_factor="1" dont_use="false" guid="{DD4B76D6-9298-42C1-8058-D5A98488E6FB}" name="TD_1_FTL" only_uniform="false" season="-1">
+      <shiptypes>
+        <shiptype causation_reduction_factor="0" freq_adjustment="1" grounding_safety_margin="-1" name="General cargo ship">
+          <categories/>
+        </shiptype>
+      </shiptypes>
+    </traffic_distribution>
+    <traffic_distribution adjustment_factor="1" dont_use="false" guid="{04EC2D29-F94E-4E25-9EB2-96C465E1A0FB}" name="TD_1_LTF" only_uniform="false" season="-1">
+      <shiptypes>
+        <shiptype causation_reduction_factor="0" freq_adjustment="1" grounding_safety_margin="-1" name="General cargo ship">
+          <categories/>
+        </shiptype>
+      </shiptypes>
+    </traffic_distribution>
+    <traffic_distribution adjustment_factor="1" dont_use="false" guid="{E1FD29B7-707E-4815-8C75-7AC15B18F425}" name="TD_2_FTL" only_uniform="false" season="-1">
+      <shiptypes>
+        <shiptype causation_reduction_factor="0" freq_adjustment="1" grounding_safety_margin="-1" name="General cargo ship">
+          <categories/>
+        </shiptype>
+      </shiptypes>
+    </traffic_distribution>
+    <traffic_distribution adjustment_factor="1" dont_use="false" guid="{7F900015-09FC-430E-90B0-81E250537717}" name="TD_2_LTF" only_uniform="false" season="-1">
+      <shiptypes>
+        <shiptype causation_reduction_factor="0" freq_adjustment="1" grounding_safety_margin="-1" name="General cargo ship">
+          <categories/>
+        </shiptype>
+      </shiptypes>
+    </traffic_distribution>
+    <traffic_distribution adjustment_factor="1" dont_use="false" guid="{672D21C2-59C5-4959-A265-79D471B2344D}" name="TD_3_FTL" only_uniform="false" season="-1">
+      <shiptypes>
+        <shiptype causation_reduction_factor="0" freq_adjustment="1" grounding_safety_margin="-1" name="General cargo ship">
+          <categories/>
+        </shiptype>
+      </shiptypes>
+    </traffic_distribution>
+    <traffic_distribution adjustment_factor="1" dont_use="false" guid="{EA04F22B-83F7-418C-BCDE-18899CDB2C22}" name="TD_3_LTF" only_uniform="false" season="-1">
+      <shiptypes>
+        <shiptype causation_reduction_factor="0" freq_adjustment="1" grounding_safety_margin="-1" name="General cargo ship">
+          <categories/>
+        </shiptype>
+      </shiptypes>
+    </traffic_distribution>
+    <traffic_distribution adjustment_factor="1" dont_use="false" guid="{480FDCEE-4E19-450E-B188-3E24B5EA3C46}" name="TD_4_FTL" only_uniform="false" season="-1">
+      <shiptypes>
+        <shiptype causation_reduction_factor="0" freq_adjustment="1" grounding_safety_margin="-1" name="General cargo ship">
+          <categories/>
+        </shiptype>
+      </shiptypes>
+    </traffic_distribution>
+    <traffic_distribution adjustment_factor="1" dont_use="false" guid="{2C96F6C7-3833-4EFF-B5A6-83243B398CEE}" name="TD_4_LTF" only_uniform="false" season="-1">
+      <shiptypes>
+        <shiptype causation_reduction_factor="0" freq_adjustment="1" grounding_safety_margin="-1" name="General cargo ship">
+          <categories/>
+        </shiptype>
+      </shiptypes>
+    </traffic_distribution>
+  </traffic_distributions>
+  <waypoints>
+    <waypoint guid="D3A3884C-79F4-49E4-BB61-FA79C1E83247" name="WP_1_Start_Point" latitude="55.224254" longitude="13.295152" bend_causation_rf="1" crossing_causation_rf="1">
+      <leg_leg_distributions>
+        <leg_leg_distribution guid="885D321A-69AF-4413-840B-F2814414E5C9" from_leg_uid="E6DA4077-D6CC-49B3-8B84-E75C9EEF624F" to_leg_uid="E6DA4077-D6CC-49B3-8B84-E75C9EEF624F" method="AUTOMATIC" name="WTD_1" season="-1" fraction="1"/>
+      </leg_leg_distributions>
+    </waypoint>
+    <waypoint guid="E9DDF84A-C74E-4022-8926-F8A05B8B5090" name="WP_1_End_Point" latitude="55.18723" longitude="14.15881" bend_causation_rf="1" crossing_causation_rf="1">
+      <leg_leg_distributions>
+        <leg_leg_distribution guid="DE3BD535-1D22-434A-AA8A-DACA4E208BF2" from_leg_uid="CAB1F39A-6B2E-4D21-9583-A8F1FA5174A8" to_leg_uid="CAB1F39A-6B2E-4D21-9583-A8F1FA5174A8" method="AUTOMATIC" name="WTD_2" season="-1" fraction="1"/>
+      </leg_leg_distributions>
+    </waypoint>
+    <waypoint guid="DAC335F0-BF78-4157-B6E3-70517458D4C3" name="WP_2_End_Point" latitude="55.17644" longitude="14.29113" bend_causation_rf="1" crossing_causation_rf="1">
+      <leg_leg_distributions>
+        <leg_leg_distribution guid="EBC6EA71-FC30-4D4B-8FDA-709C2326B9EB" from_leg_uid="5F43448C-C8BC-4570-A791-F38D9585FE04" to_leg_uid="5F43448C-C8BC-4570-A791-F38D9585FE04" method="AUTOMATIC" name="WTD_3" season="-1" fraction="1"/>
+      </leg_leg_distributions>
+    </waypoint>
+    <waypoint guid="9B9870A8-FC16-4187-8628-C9060A196B04" name="WP_3_End_Point" latitude="55.421273" longitude="14.61975" bend_causation_rf="1" crossing_causation_rf="1">
+      <leg_leg_distributions>
+        <leg_leg_distribution guid="4177766E-FE28-4702-ADB5-753C89AABAE6" from_leg_uid="E18244E9-D345-434E-830B-41C4AB06982B" to_leg_uid="E18244E9-D345-434E-830B-41C4AB06982B" method="AUTOMATIC" name="WTD_4" season="-1" fraction="1"/>
+      </leg_leg_distributions>
+    </waypoint>
+    <waypoint guid="24BB19BC-C0A7-46A7-A2B3-D417CBE88AD9" name="WP_4_End_Point" latitude="55.560522" longitude="15.091956" bend_causation_rf="1" crossing_causation_rf="1">
+      <leg_leg_distributions/>
+    </waypoint>
+  </waypoints>
+  <manoeuvring_aspects_legs>
+    <manoeuvring_aspects_leg guid="{B97BE7C2-9410-4D33-BDA2-06C2B2EB18E0}" name="LEG_1" allision_causation_rf="1" allision_drifting_rf="1" allision_no_turn_rf="1" aton_reduction_factor="1" grounding_causation_rf="1" grounding_check_time="0" grounding_drifting_rf="1" grounding_no_turn_rf="1" headon_causation_rf="1" limit_width="false" overtaking_causation_rf="1">
+      <mixed_dist scale="1"/>
+    </manoeuvring_aspects_leg>
+    <manoeuvring_aspects_leg guid="{3DD55F71-B0E7-43F1-A33C-C4C6F394E55E}" name="LEG_1" allision_causation_rf="1" allision_drifting_rf="1" allision_no_turn_rf="1" aton_reduction_factor="1" grounding_causation_rf="1" grounding_check_time="0" grounding_drifting_rf="1" grounding_no_turn_rf="1" headon_causation_rf="1" limit_width="false" overtaking_causation_rf="1">
+      <mixed_dist scale="1"/>
+    </manoeuvring_aspects_leg>
+    <manoeuvring_aspects_leg guid="{DF2A5D1D-F0C3-4789-AF11-CF069FBC5D91}" name="LEG_2" allision_causation_rf="1" allision_drifting_rf="1" allision_no_turn_rf="1" aton_reduction_factor="1" grounding_causation_rf="1" grounding_check_time="0" grounding_drifting_rf="1" grounding_no_turn_rf="1" headon_causation_rf="1" limit_width="false" overtaking_causation_rf="1">
+      <mixed_dist scale="1"/>
+    </manoeuvring_aspects_leg>
+    <manoeuvring_aspects_leg guid="{78588AAA-7ED0-4527-9C1D-48F4C4607C54}" name="LEG_2" allision_causation_rf="1" allision_drifting_rf="1" allision_no_turn_rf="1" aton_reduction_factor="1" grounding_causation_rf="1" grounding_check_time="0" grounding_drifting_rf="1" grounding_no_turn_rf="1" headon_causation_rf="1" limit_width="false" overtaking_causation_rf="1">
+      <mixed_dist scale="1"/>
+    </manoeuvring_aspects_leg>
+    <manoeuvring_aspects_leg guid="{F0AF3CBA-3B9B-4E71-B1CE-164016F16CF0}" name="LEG_3" allision_causation_rf="1" allision_drifting_rf="1" allision_no_turn_rf="1" aton_reduction_factor="1" grounding_causation_rf="1" grounding_check_time="0" grounding_drifting_rf="1" grounding_no_turn_rf="1" headon_causation_rf="1" limit_width="false" overtaking_causation_rf="1">
+      <mixed_dist scale="1"/>
+    </manoeuvring_aspects_leg>
+    <manoeuvring_aspects_leg guid="{3DEE5E10-35DA-4C31-B677-D3C8AF57A729}" name="LEG_3" allision_causation_rf="1" allision_drifting_rf="1" allision_no_turn_rf="1" aton_reduction_factor="1" grounding_causation_rf="1" grounding_check_time="0" grounding_drifting_rf="1" grounding_no_turn_rf="1" headon_causation_rf="1" limit_width="false" overtaking_causation_rf="1">
+      <mixed_dist scale="1"/>
+    </manoeuvring_aspects_leg>
+    <manoeuvring_aspects_leg guid="{FE87491B-8F51-4C2F-B2C2-BDA39DF96C13}" name="LEG_4" allision_causation_rf="1" allision_drifting_rf="1" allision_no_turn_rf="1" aton_reduction_factor="1" grounding_causation_rf="1" grounding_check_time="0" grounding_drifting_rf="1" grounding_no_turn_rf="1" headon_causation_rf="1" limit_width="false" overtaking_causation_rf="1">
+      <mixed_dist scale="1"/>
+    </manoeuvring_aspects_leg>
+    <manoeuvring_aspects_leg guid="{FAF22BC5-A79F-48E5-B41F-C12BA321F8C3}" name="LEG_4" allision_causation_rf="1" allision_drifting_rf="1" allision_no_turn_rf="1" aton_reduction_factor="1" grounding_causation_rf="1" grounding_check_time="0" grounding_drifting_rf="1" grounding_no_turn_rf="1" headon_causation_rf="1" limit_width="false" overtaking_causation_rf="1">
+      <mixed_dist scale="1"/>
+    </manoeuvring_aspects_leg>
+  </manoeuvring_aspects_legs>
+  <legs>
+    <leg guid="E6DA4077-D6CC-49B3-8B84-E75C9EEF624F" name="LEG_1" max_width="15000.0" max_width_powered="15000.0" max_extension_first="50000" max_extension_last="50000" first_waypoint_guid="D3A3884C-79F4-49E4-BB61-FA79C1E83247" last_waypoint_guid="E9DDF84A-C74E-4022-8926-F8A05B8B5090" traffic_distribution_first_to_last_guid="{DD4B76D6-9298-42C1-8058-D5A98488E6FB}" traffic_distribution_last_to_first_guid="{04EC2D29-F94E-4E25-9EB2-96C465E1A0FB}" man_aspects_first_to_last_guid="{B97BE7C2-9410-4D33-BDA2-06C2B2EB18E0}" man_aspects_last_to_first_guid="{3DD55F71-B0E7-43F1-A33C-C4C6F394E55E}">
+      <tags/>
+    </leg>
+    <leg guid="CAB1F39A-6B2E-4D21-9583-A8F1FA5174A8" name="LEG_2" max_width="15000.0" max_width_powered="15000.0" max_extension_first="50000" max_extension_last="50000" first_waypoint_guid="E9DDF84A-C74E-4022-8926-F8A05B8B5090" last_waypoint_guid="DAC335F0-BF78-4157-B6E3-70517458D4C3" traffic_distribution_first_to_last_guid="{E1FD29B7-707E-4815-8C75-7AC15B18F425}" traffic_distribution_last_to_first_guid="{7F900015-09FC-430E-90B0-81E250537717}" man_aspects_first_to_last_guid="{DF2A5D1D-F0C3-4789-AF11-CF069FBC5D91}" man_aspects_last_to_first_guid="{78588AAA-7ED0-4527-9C1D-48F4C4607C54}">
+      <tags/>
+    </leg>
+    <leg guid="5F43448C-C8BC-4570-A791-F38D9585FE04" name="LEG_3" max_width="15000.0" max_width_powered="15000.0" max_extension_first="50000" max_extension_last="50000" first_waypoint_guid="DAC335F0-BF78-4157-B6E3-70517458D4C3" last_waypoint_guid="9B9870A8-FC16-4187-8628-C9060A196B04" traffic_distribution_first_to_last_guid="{672D21C2-59C5-4959-A265-79D471B2344D}" traffic_distribution_last_to_first_guid="{EA04F22B-83F7-418C-BCDE-18899CDB2C22}" man_aspects_first_to_last_guid="{F0AF3CBA-3B9B-4E71-B1CE-164016F16CF0}" man_aspects_last_to_first_guid="{3DEE5E10-35DA-4C31-B677-D3C8AF57A729}">
+      <tags/>
+    </leg>
+    <leg guid="E18244E9-D345-434E-830B-41C4AB06982B" name="LEG_4" max_width="15000.0" max_width_powered="15000.0" max_extension_first="50000" max_extension_last="50000" first_waypoint_guid="9B9870A8-FC16-4187-8628-C9060A196B04" last_waypoint_guid="24BB19BC-C0A7-46A7-A2B3-D417CBE88AD9" traffic_distribution_first_to_last_guid="{480FDCEE-4E19-450E-B188-3E24B5EA3C46}" traffic_distribution_last_to_first_guid="{2C96F6C7-3833-4EFF-B5A6-83243B398CEE}" man_aspects_first_to_last_guid="{FE87491B-8F51-4C2F-B2C2-BDA39DF96C13}" man_aspects_last_to_first_guid="{FAF22BC5-A79F-48E5-B41F-C12BA321F8C3}">
+      <tags/>
+    </leg>
+  </legs>
+  <areas>
+    <area_polygon area_style_id="" causationReductionFactor="1" depth="0.0" guid="E1BE5ED4-13A9-4977-A516-57025D03357D" is_line="false" is_right="false" filename="depth" name="depth_1" structure_type="" style_mode="0" type="0">
+      <polygon/>
+    </area_polygon>
+    <area_polygon area_style_id="" causationReductionFactor="1" depth="3.0" guid="7E4E9479-E294-4835-80F7-E842F026E77D" is_line="false" is_right="false" filename="depth" name="depth_2" structure_type="" style_mode="0" type="0">
+      <polygon/>
+    </area_polygon>
+    <area_polygon area_style_id="" causationReductionFactor="1" depth="6.0" guid="ED374180-52F1-499E-9BB7-B15F9613A19B" is_line="false" is_right="false" filename="depth" name="depth_3" structure_type="" style_mode="0" type="0">
+      <polygon/>
+    </area_polygon>
+    <area_polygon area_style_id="" causationReductionFactor="1" depth="9.0" guid="EF7B47E5-38D6-4DF3-88EA-B953DADF26A2" is_line="false" is_right="false" filename="depth" name="depth_4" structure_type="" style_mode="0" type="0">
+      <polygon/>
+    </area_polygon>
+    <area_polygon area_style_id="" causationReductionFactor="1" depth="12.0" guid="4EA194B1-0092-4D1E-A684-801591019512" is_line="false" is_right="false" filename="depth" name="depth_5" structure_type="" style_mode="0" type="0">
+      <polygon/>
+    </area_polygon>
+    <area_polygon area_style_id="" causationReductionFactor="1" depth="15.0" guid="36B8D2BD-D52D-4F70-9CB1-694C83BD38FB" is_line="false" is_right="false" filename="depth" name="depth_6" structure_type="" style_mode="0" type="0">
+      <polygon/>
+    </area_polygon>
+    <area_polygon area_style_id="" causationReductionFactor="1" depth="18.0" guid="B4A2F7B7-F97C-4BB5-902A-201C37D75DAD" is_line="false" is_right="false" filename="depth" name="depth_7" structure_type="" style_mode="0" type="0">
+      <polygon/>
+    </area_polygon>
+    <area_polygon area_style_id="" causationReductionFactor="1" depth="21.0" guid="C54C4158-F4CA-471E-96B6-BCE20A57DE52" is_line="false" is_right="false" filename="depth" name="depth_8" structure_type="" style_mode="0" type="0">
+      <polygon/>
+    </area_polygon>
+    <area_polygon area_style_id="" causationReductionFactor="1" depth="24.0" guid="4D39C8FA-5669-4240-9ECD-9532DAA82D78" is_line="false" is_right="false" filename="depth" name="depth_9" structure_type="" style_mode="0" type="0">
+      <polygon/>
+    </area_polygon>
+    <area_polygon area_style_id="" causationReductionFactor="1" depth="27.0" guid="1197763B-D0F0-4F11-97E4-7DB96499F4FD" is_line="false" is_right="false" filename="depth" name="depth_10" structure_type="" style_mode="0" type="0">
+      <polygon/>
+    </area_polygon>
+    <area_polygon area_style_id="" causationReductionFactor="1" depth="30.0" guid="AAEBD9EC-165C-46CE-9667-15350782137B" is_line="false" is_right="false" filename="depth" name="depth_11" structure_type="" style_mode="0" type="0">
+      <polygon/>
+    </area_polygon>
+    <area_polygon area_style_id="" causationReductionFactor="1" depth="33.0" guid="961ED646-07DE-4E21-80F2-88799D9A2AE9" is_line="false" is_right="false" filename="depth" name="depth_12" structure_type="" style_mode="0" type="0">
+      <polygon/>
+    </area_polygon>
+    <area_polygon area_style_id="" causationReductionFactor="1" depth="36.0" guid="9D305B9C-CA3F-4862-83D8-5D5F14F24F83" is_line="false" is_right="false" filename="depth" name="depth_13" structure_type="" style_mode="0" type="0">
+      <polygon/>
+    </area_polygon>
+    <area_polygon area_style_id="" causationReductionFactor="1" depth="39.0" guid="178210C0-F741-4815-B941-6BD268801A13" is_line="false" is_right="false" filename="depth" name="depth_14" structure_type="" style_mode="0" type="0">
+      <polygon/>
+    </area_polygon>
+    <area_polygon area_style_id="" causationReductionFactor="1" depth="42.0" guid="A3BFF7F6-36A6-4F6A-BA05-EA720EA32B7E" is_line="false" is_right="false" filename="depth" name="depth_15" structure_type="" style_mode="0" type="0">
+      <polygon/>
+    </area_polygon>
+    <area_polygon area_style_id="" causationReductionFactor="1" depth="45.0" guid="B5CFDF56-3692-451E-BA22-31F508F7DBB7" is_line="false" is_right="false" filename="depth" name="depth_16" structure_type="" style_mode="0" type="0">
+      <polygon/>
+    </area_polygon>
+    <area_polygon area_style_id="" causationReductionFactor="1" depth="48.0" guid="B501597E-9EC0-4E5B-8C3D-AFEF24AC448D" is_line="false" is_right="false" filename="depth" name="depth_17" structure_type="" style_mode="0" type="0">
+      <polygon/>
+    </area_polygon>
+    <area_polygon area_style_id="" causationReductionFactor="1" depth="-1" guid="ED296587-4059-4DE9-A7F8-1FF89AA44217" is_line="false" is_right="false" filename="object" name="object_1" structure_type="Other" style_mode="1" type="1">
+      <polygon/>
+    </area_polygon>
+    <area_polygon area_style_id="" causationReductionFactor="1" depth="-1" guid="8A289C42-4EA4-42F3-B3F3-C4D450E33730" is_line="false" is_right="false" filename="object" name="object_2" structure_type="Other" style_mode="1" type="1">
+      <polygon/>
+    </area_polygon>
+  </areas>
+  <traffic_areas/>
+  <drifting anchor_probability="1.0" max_anchor_depth="7.0" drift_speed="1.0" blackout_other="1.0">
+    <repair_time/>
+    <drift_directions angle_0="0.125" angle_45="0.125" angle_90="0.125" angle_135="0.125" angle_180="0.125" angle_225="0.125" angle_270="0.125" angle_315="0.125"/>
+  </drifting>
+  <area_traffic/>
+  <routes/>
+  <tug_boats/>
+  <global_settings>
+    <causation_factors p_allision_causation="0.000155" p_allision_drifting_causation="1" p_allision_no_turn_causation="0.000155" p_bend_causation="0.00013" p_crossing_causation="0.00013" p_grounding_causation="0.000155" p_grounding_drifting_causation="1" p_grounding_no_turn_causation="0.000155" p_headon_causation="5e-05" p_merging_causation="0.00013" p_overtaking_causation="0.00011"/>
+    <misc fastferry_reduction_factor="20" meantime_between_checks="240" passengership_reductionfactor="20"/>
+  </global_settings>
+</riskmodel>
