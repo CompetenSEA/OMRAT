@@ -14,6 +14,28 @@ export const initialWorkbenchState = {
     report_path: '',
     causation_version: 'v1',
   },
+  osmContext: {
+    land_features: [
+      {
+        type: 'Feature',
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[[4.4, 57.9], [4.8, 57.9], [4.8, 58.2], [4.4, 58.2], [4.4, 57.9]]],
+        },
+        properties: { natural: 'coastline', name: 'sample-land' },
+      },
+    ],
+    fixed_object_features: [
+      {
+        type: 'Feature',
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[[4.95, 57.95], [5.0, 57.95], [5.0, 58.0], [4.95, 58.0], [4.95, 57.95]]],
+        },
+        properties: { man_made: 'platform', name: 'sample-fixed-object' },
+      },
+    ],
+  },
   runTask: null,
   runSummary: null,
 };
@@ -32,6 +54,8 @@ export function workbenchReducer(state, action) {
       return { ...state, objects: action.objects };
     case 'UPDATE_SETTINGS':
       return { ...state, settings: { ...state.settings, ...action.settings } };
+    case 'UPDATE_OSM_CONTEXT':
+      return { ...state, osmContext: { ...state.osmContext, ...action.osmContext } };
     case 'RUN_QUEUED':
       return { ...state, runTask: action.task, runSummary: null, activeTab: 'run-analysis' };
     case 'RUN_PROGRESS':
@@ -50,5 +74,6 @@ export function buildCanonicalPayload(state) {
     depths: state.depths,
     objects: state.objects,
     settings: state.settings,
+    osm_context: state.osmContext,
   };
 }
